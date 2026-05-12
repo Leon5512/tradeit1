@@ -4,3 +4,4 @@ pyotp
 qrcode[pil]
 requests
 pywebpush
+gunicorn
