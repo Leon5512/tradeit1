@@ -5,3 +5,4 @@ qrcode[pil]
 requests
 pywebpush
 gunicorn
+resend
