@@ -106,12 +106,14 @@ def setup():
     if "user_id" in session:
         db = get_db()
         user = db.execute("SELECT is_banned, is_admin FROM users WHERE id=?", (session["user_id"],)).fetchone()
-        if user:
-            if user["is_banned"]:
-                session.clear()
-                flash("Ваш аккаунт заблокирован.", "error")
-                return redirect(url_for("login"))
-            session["is_admin"] = bool(user["is_admin"])
+        if not user:
+            session.clear()
+            return
+        if user["is_banned"]:
+            session.clear()
+            flash("Ваш аккаунт заблокирован.", "error")
+            return redirect(url_for("login"))
+        session["is_admin"] = bool(user["is_admin"])
 
 # ── Главная ──────────────────────────────────────────
 @app.route("/")
@@ -314,6 +316,9 @@ def settings():
     if "user_id" not in session: return redirect(url_for("login"))
     db = get_db()
     user = db.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
+    if not user:
+        session.clear()
+        return redirect(url_for("login"))
     if request.method == "POST":
         bio = request.form.get("bio", "").strip()[:300]
         city = request.form.get("city", "").strip()
