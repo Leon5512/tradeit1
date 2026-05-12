@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from push_notifications import send_push_to_user, VAPID_PUBLIC_KEY
 import os, time, functools, uuid as uuid_lib, secrets
 import requests as http_requests
-from email_sender import send_verification_email, send_message_notification, send_purchase_notification, send_call_notification, send_2fa_code_email
+
 
 # ── 2FA зависимости ──────────────────────────────────
 import pyotp
@@ -90,27 +90,7 @@ def _generate_qr_url(secret: str, username: str) -> str:
 def _verify_totp(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
 
-def _create_email_code(db, user_id: int, purpose: str) -> str:
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    now  = int(time.time())
-    db.execute(
-        "INSERT INTO tfa_email_codes (user_id, code, purpose, created_at, expires_at) VALUES (?,?,?,?,?)",
-        (user_id, code, purpose, now, now + 600)
-    )
-    db.commit()
-    return code
 
-def _check_email_code(db, user_id: int, code: str, purpose: str) -> bool:
-    now = int(time.time())
-    row = db.execute(
-        "SELECT id FROM tfa_email_codes WHERE user_id=? AND code=? AND purpose=? AND used=0 AND expires_at>?",
-        (user_id, code, purpose, now)
-    ).fetchone()
-    if not row:
-        return False
-    db.execute("UPDATE tfa_email_codes SET used=1 WHERE id=?", (row["id"],))
-    db.commit()
-    return True
 
 # ── Service Worker ───────────────────────────────────
 @app.route("/sw.js")
@@ -170,11 +150,10 @@ def register():
             (username, email, generate_password_hash(password), is_admin, is_admin, token, int(time.time()))
         )
         db.commit()
-        sent = send_verification_email(email, username, token)
-        if not sent:
-            flash("Не удалось отправить письмо с подтверждением. Свяжись с поддержкой.", "error")
-            return redirect(url_for("register"))
-        return render_template("verify_pending.html", email=email)
+        db.execute("UPDATE users SET is_verified=1 WHERE id=?", (db.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()[0],))
+        db.commit()
+        flash("Регистрация успешна! Войди в аккаунт.", "success")
+        return redirect(url_for("login"))
     return render_template("register.html")
 
 # ── Подтверждение email ──────────────────────────────
@@ -206,17 +185,24 @@ def login():
                 flash("Аккаунт заблокирован.", "error")
                 return redirect(url_for("login"))
             if not user["is_verified"]:
-                return render_template("verify_pending.html", email=user["email"])
+                flash("Аккаунт не подтверждён. Обратись в поддержку.", "error")
+                return redirect(url_for("login"))
 
             # ── 2FA ──────────────────────────────────
             if user["tfa_enabled"]:
                 session.clear()
                 session["tfa_pending_user_id"] = user["id"]
                 session["tfa_method"]          = user["tfa_method"]
-                if user["tfa_method"] == "email":
-                    code = _create_email_code(db, user["id"], purpose="login")
-                    send_2fa_code_email(user["email"], user["username"], code)
-                return render_template("2fa_verify.html", method=user["tfa_method"])
+                if user["tfa_method"] == "totp":
+                    return render_template("2fa_verify.html", method="totp")
+                # email 2FA disabled - skip
+                session.clear()
+                session["user_id"] = user["id"]
+                session["username"] = user["username"]
+                session["is_admin"] = bool(user["is_admin"])
+                session["admin_unlocked"] = False
+                flash("Добро пожаловать!", "success")
+                return redirect(url_for("index"))
             # ─────────────────────────────────────────
 
             session.clear()
@@ -248,17 +234,6 @@ def tfa_setup():
     session["pending_totp_secret"] = secret
     return render_template("2fa_setup.html", qr_url=qr_url, secret=secret)
 
-@app.route("/settings/2fa/send-email-code", methods=["POST"])
-def tfa_send_email_code():
-    if "user_id" not in session:
-        return jsonify({"ok": False, "msg": "Войди в аккаунт"})
-    db   = get_db()
-    user = db.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
-    code = _create_email_code(db, user["id"], purpose="setup")
-    sent = send_2fa_code_email(user["email"], user["username"], code)
-    if sent:
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "msg": "Ошибка отправки письма"})
 
 @app.route("/settings/2fa/enable", methods=["POST"])
 def tfa_enable():
@@ -282,16 +257,6 @@ def tfa_enable():
         )
         db.commit()
         session.pop("pending_totp_secret", None)
-        return jsonify({"ok": True})
-
-    elif method == "email":
-        if not _check_email_code(db, uid, code, purpose="setup"):
-            return jsonify({"ok": False, "msg": "Неверный или просроченный код"})
-        db.execute(
-            "UPDATE users SET tfa_enabled=1, tfa_method='email', totp_secret='' WHERE id=?",
-            (uid,)
-        )
-        db.commit()
         return jsonify({"ok": True})
 
     return jsonify({"ok": False, "msg": "Неизвестный метод"})
@@ -330,8 +295,6 @@ def login_2fa_verify():
     ok = False
     if method == "totp":
         ok = _verify_totp(user["totp_secret"], code)
-    elif method == "email":
-        ok = _check_email_code(db, user["id"], code, purpose="login")
 
     if not ok:
         return jsonify({"ok": False, "msg": "Неверный код. Попробуй ещё раз."})
@@ -343,27 +306,6 @@ def login_2fa_verify():
     session["admin_unlocked"] = False
     return jsonify({"ok": True, "redirect": "/"})
 
-@app.route("/login/2fa/resend", methods=["POST"])
-def login_2fa_resend():
-    pending_uid = session.get("tfa_pending_user_id")
-    if not pending_uid or session.get("tfa_method") != "email":
-        return jsonify({"ok": False, "msg": "Неверная сессия"})
-    db   = get_db()
-    user = db.execute("SELECT * FROM users WHERE id=?", (pending_uid,)).fetchone()
-    if not user:
-        return jsonify({"ok": False, "msg": "Пользователь не найден"})
-    # Защита от спама — не чаще раза в 60 сек
-    last = db.execute(
-        "SELECT created_at FROM tfa_email_codes WHERE user_id=? AND purpose='login' ORDER BY created_at DESC LIMIT 1",
-        (pending_uid,)
-    ).fetchone()
-    if last and (int(time.time()) - last["created_at"]) < 60:
-        return jsonify({"ok": False, "msg": "Подожди 60 секунд перед повторной отправкой"})
-    code = _create_email_code(db, user["id"], purpose="login")
-    sent = send_2fa_code_email(user["email"], user["username"], code)
-    if sent:
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "msg": "Ошибка отправки письма"})
 
 # ── Настройки ────────────────────────────────────────
 @app.route("/settings", methods=["GET", "POST"])
@@ -494,9 +436,6 @@ def buy_ad(ad_id):
     buyer = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
     buyer_name = buyer["username"] if buyer else "Покупатель"
     send_push_to_user(db, ad["user_id"], title="🎉 Твоё объявление куплено!", body=f"{buyer_name} купил «{ad['title'][:60]}»", url=f"/ad/{ad_id}", tag="purchase")
-    seller = db.execute("SELECT email FROM users WHERE id=?", (ad["user_id"],)).fetchone()
-    if seller:
-        send_purchase_notification(seller["email"], buyer_name, ad["title"], ad_id)
     return jsonify({"ok": True, "seller_id": ad["user_id"]})
 
 @app.route("/ad/<int:ad_id>/purchase")
@@ -718,9 +657,6 @@ def api_send(other_id):
     sender_name = sender["username"] if sender else "Кто-то"
     preview = text[:80] + ("…" if len(text) > 80 else "")
     send_push_to_user(db, other_id, title=f"✉️ Новое сообщение от {sender_name}", body=preview, url=f"/messages/{uid}", tag="msg")
-    receiver = db.execute("SELECT email FROM users WHERE id=?", (other_id,)).fetchone()
-    if receiver:
-        send_message_notification(receiver["email"], sender_name, preview, f"/messages/{uid}")
     return jsonify({"ok": True})
 
 @app.route("/api/unread")
@@ -1039,9 +975,6 @@ def api_msn_send(other_id):
     if receiver:
         preview = text[:80] + ("…" if len(text) > 80 else "")
         send_push_to_user(db, receiver["user_id"], title=f"🚀 {me['msn_username']} написал тебе", body=preview, url=f"/messenger/chat/{me['id']}", tag="msn")
-        receiver_email = db.execute("SELECT email FROM users WHERE id=?", (receiver["user_id"],)).fetchone()
-        if receiver_email:
-            send_message_notification(receiver_email["email"], me["msn_username"], preview, f"/messenger/chat/{me['id']}")
     return jsonify({"ok": True})
 
 @app.route("/api/msn/msgs/<int:other_id>")
@@ -1130,9 +1063,6 @@ def api_msn_call_initiate(callee_profile_id):
     callee_user = db.execute("SELECT user_id FROM messenger_profiles WHERE id=?", (callee_profile_id,)).fetchone()
     if callee_user:
         send_push_to_user(db, callee_user["user_id"], title=f"📞 Входящий звонок от {me['msn_username']}", body=f"Номер: {me['msn_number']} — нажми, чтобы ответить", url=f"/messenger/call/{call_id}", tag="call")
-        callee_email = db.execute("SELECT email FROM users WHERE id=?", (callee_user["user_id"],)).fetchone()
-        if callee_email:
-            send_call_notification(callee_email["email"], me["msn_username"], me["msn_number"], f"/messenger/call/{call_id}")
     return jsonify({"ok": True, "call_id": call_id})
 
 @app.route("/api/msn/call/signal", methods=["POST"])
@@ -1257,8 +1187,6 @@ def api_msn_send_media(other_id):
     if receiver:
         send_push_to_user(db, receiver["user_id"], title=f"📎 {me['msn_username']} прислал файл", body="Медиафайл", url=f"/messenger/chat/{me['id']}", tag="msn")
         receiver_email = db.execute("SELECT email FROM users WHERE id=?", (receiver["user_id"],)).fetchone()
-        if receiver_email:
-            send_message_notification(receiver_email["email"], me["msn_username"], "📎 Медиафайл", f"/messenger/chat/{me['id']}")
     return jsonify({"ok": True})
 
 # ── Запуск ────────────────────────────────────────────
