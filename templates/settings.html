@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Настройки профиля{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px;">
+  <div class="card" style="margin-top:20px;">
+    <div class="page-header">
+      <h1>⚙️ Настройки профиля</h1>
+      <p>Кастомизируй свой аккаунт</p>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      <!-- Аватар -->
+      <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;padding:16px;background:var(--bg);border-radius:var(--radius);">
+        {% if user.avatar %}
+          <img src="/static/uploads/{{ user.avatar }}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid {{ user.accent_color }};">
+        {% else %}
+          <div style="width:80px;height:80px;border-radius:50%;background:{{ user.accent_color }};display:flex;align-items:center;justify-content:center;font-size:32px;color:white;font-weight:800;">
+            {{ user.username[0].upper() }}
+          </div>
+        {% endif %}
+        <div style="flex:1;">
+          <label style="display:block;font-weight:700;font-size:14px;margin-bottom:6px;">Фото профиля</label>
+          <input type="file" name="avatar" accept="image/*">
+        </div>
+      </div>
+      <!-- Цвет акцента -->
+      <div class="form-group">
+        <label>🎨 Цвет профиля</label>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          {% for color in ['#00aeef','#ff6a00','#22c55e','#a855f7','#ef4444','#f59e0b','#ec4899','#06b6d4'] %}
+          <label style="cursor:pointer;">
+            <input type="radio" name="accent_color" value="{{ color }}" {% if user.accent_color==color %}checked{% endif %} style="display:none;">
+            <div style="width:32px;height:32px;border-radius:50%;background:{{ color }};border:3px solid {% if user.accent_color==color %}#1a1a2e{% else %}transparent{% endif %};transition:transform .15s;" onclick="this.parentElement.querySelector('input').checked=true;document.querySelectorAll('.color-dot').forEach(d=>d.style.border='3px solid transparent');this.style.border='3px solid #1a1a2e'" class="color-dot"></div>
+          </label>
+          {% endfor %}
+          <input type="color" name="accent_color_custom" value="{{ user.accent_color }}" style="width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;padding:0;" title="Свой цвет" onchange="document.querySelector('input[name=accent_color]:checked').value=this.value">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>📍 Город</label>
+        <input type="text" name="city" value="{{ user.city or '' }}" placeholder="Москва">
+      </div>
+      <div class="form-group">
+        <label>📝 О себе</label>
+        <textarea name="bio" placeholder="Расскажи о себе..." maxlength="300">{{ user.bio or '' }}</textarea>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Максимум 300 символов</div>
+      </div>
+      <hr style="border:none;border-top:2px solid var(--border);margin:20px 0;">
+      <div class="form-group">
+        <label>🔑 Новый пароль <span style="font-weight:400;color:var(--muted);">(оставь пустым чтобы не менять)</span></label>
+        <input type="password" name="new_password" placeholder="Минимум 6 символов" minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:15px;">
+        💾 Сохранить изменения
+      </button>
+    </form>
+
+    <!-- ── 2FA ─────────────────────────────────────── -->
+    <hr style="border:none;border-top:2px solid var(--border);margin:24px 0;">
+    <div>
+      <label style="display:block;font-weight:700;font-size:15px;margin-bottom:4px;">🔐 Двухфакторная аутентификация</label>
+      {% if user.tfa_enabled %}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="background:#22c55e22;color:#22c55e;border-radius:20px;padding:3px 12px;font-size:13px;font-weight:700;">
+            ✅ Включена
+          </span>
+          <span style="font-size:13px;color:var(--muted);">
+            Метод: {{ '📱 Приложение' if user.tfa_method == 'totp' else '📧 Email' }}
+          </span>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          Для отключения 2FA введи текущий пароль.
+        </p>
+        <div style="display:flex;gap:8px;">
+          <input type="password" id="disable-pwd" placeholder="Текущий пароль"
+                 style="flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:14px;background:var(--bg);color:var(--text);outline:none;">
+          <button onclick="disable2fa()" class="btn btn-danger" style="white-space:nowrap;">🔓 Отключить</button>
+        </div>
+        <div id="tfa-disable-err" style="color:var(--error);font-size:13px;font-weight:700;display:none;margin-top:6px;"></div>
+      {% else %}
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          Защити аккаунт вторым фактором — приложением-аутентификатором или кодом на почту.
+        </p>
+        <a href="/settings/2fa/setup" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+          🔐 Включить 2FA
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- ── Push-уведомления ───────────────────────── -->
+    <hr style="border:none;border-top:2px solid var(--border);margin:24px 0;">
+    <div>
+      <label style="display:block;font-weight:700;font-size:14px;margin-bottom:6px;">🔔 Push-уведомления</label>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Получай уведомления о сообщениях, звонках и покупках даже когда сайт закрыт.</p>
+      <button id="settings-push-btn" onclick="settingsTogglePush()" class="btn btn-ghost" style="width:100%;justify-content:center;">
+        ⏳ Проверка...
+      </button>
+      <div id="settings-push-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Отключение 2FA ────────────────────────────────────
+async function disable2fa() {
+  const pwd = document.getElementById('disable-pwd').value;
+  const err = document.getElementById('tfa-disable-err');
+  err.style.display = 'none';
+  if (!pwd) { err.textContent = 'Введи пароль'; err.style.display = 'block'; return; }
+  const r = await fetch('/settings/2fa/disable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: pwd})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    window.location.href = '/settings';
+  } else {
+    err.textContent = d.msg || 'Ошибка';
+    err.style.display = 'block';
+  }
+}
+
+// ── Push-уведомления ─────────────────────────────────
+let _swReg = null;
+let _pushSub = null;
+
+async function initSettingsPush() {
+  const btn = document.getElementById('settings-push-btn');
+  const status = document.getElementById('settings-push-status');
+
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    btn.textContent = '❌ Браузер не поддерживает уведомления';
+    btn.disabled = true;
+    return;
+  }
+
+  try {
+    _swReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+    _pushSub = await _swReg.pushManager.getSubscription();
+  } catch(e) {
+    btn.textContent = '❌ Ошибка Service Worker';
+    btn.disabled = true;
+    status.textContent = 'Ошибка: ' + e.message;
+    return;
+  }
+
+  const perm = Notification.permission;
+  if (perm === 'denied') {
+    btn.textContent = '🚫 Уведомления заблокированы браузером';
+    btn.disabled = true;
+    status.textContent = 'Разреши уведомления вручную в настройках браузера';
+    return;
+  }
+
+  if (_pushSub) {
+    btn.textContent = '🔕 Отключить уведомления';
+    btn.className = 'btn btn-danger';
+    btn.style.cssText = 'width:100%;justify-content:center;';
+    status.textContent = '✅ Уведомления включены';
+    status.style.color = 'var(--success)';
+  } else {
+    btn.textContent = '🔔 Включить уведомления';
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'width:100%;justify-content:center;';
+    status.textContent = '';
+  }
+}
+
+async function settingsTogglePush() {
+  const btn = document.getElementById('settings-push-btn');
+  const status = document.getElementById('settings-push-status');
+  btn.disabled = true;
+
+  if (_pushSub) {
+    try {
+      await fetch('/api/push/unsubscribe', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:_pushSub.endpoint})});
+      await _pushSub.unsubscribe();
+      _pushSub = null;
+      btn.textContent = '🔔 Включить уведомления';
+      btn.className = 'btn btn-primary';
+      btn.style.cssText = 'width:100%;justify-content:center;';
+      status.textContent = 'Уведомления отключены';
+      status.style.color = 'var(--muted)';
+    } catch(e) { status.textContent = 'Ошибка: ' + e.message; }
+  } else {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { status.textContent = 'Разрешение не дано'; btn.disabled=false; return; }
+    try {
+      const {key} = await (await fetch('/api/push/vapid-public-key')).json();
+      const appKey = urlB64ToUint8(key);
+      _pushSub = await _swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:appKey});
+      await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_pushSub.toJSON())});
+      btn.textContent = '🔕 Отключить уведомления';
+      btn.className = 'btn btn-danger';
+      btn.style.cssText = 'width:100%;justify-content:center;';
+      status.textContent = '✅ Уведомления включены';
+      status.style.color = 'var(--success)';
+    } catch(e) { status.textContent = 'Ошибка подписки: ' + e.message; }
+  }
+  btn.disabled = false;
+}
+
+function urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const base64 = (b64 + pad).replace(/-/g,'+').replace(/_/g,'/');
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+}
+
+initSettingsPush();
+
+// Flash 2FA success
+{% if request.args.get('tfa') == '1' %}
+  alert('✅ Двухфакторная аутентификация успешно включена!');
+{% endif %}
+</script>
+{% endblock %}

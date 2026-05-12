@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#00aeef">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>{% block title %}TradeIt{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--primary:#00aeef;--primary-dark:#0090cc;--accent:#ff6a00;--text:#1a1a2e;--muted:#7a8ba0;--border:#e2e8f0;--success:#22c55e;--error:#ef4444;--radius:14px;--shadow:0 2px 16px rgba(0,0,0,0.08);}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+  nav{background:var(--card);border-bottom:2px solid var(--primary);padding:0 24px;display:flex;align-items:center;gap:12px;height:60px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,174,239,0.1);}
+  .nav-logo{font-size:22px;font-weight:800;color:var(--primary);text-decoration:none;letter-spacing:-0.5px;flex-shrink:0;}
+  .nav-logo span{color:var(--accent);}
+  .nav-search{flex:1;max-width:480px;}
+  .nav-search form{display:flex;}
+  .nav-search input{flex:1;padding:8px 14px;border:2px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-family:inherit;font-size:14px;outline:none;}
+  .nav-search input:focus{border-color:var(--primary);}
+  .nav-search button{padding:8px 16px;background:var(--primary);color:white;border:none;border-radius:0 var(--radius) var(--radius) 0;cursor:pointer;font-size:16px;}
+  .nav-links{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+
+  .nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;cursor:pointer;padding:8px;background:none;border:none;color:var(--text);flex-shrink:0;margin-left:auto;}
+  .nav-burger span{display:block;width:24px;height:2.5px;background:currentColor;border-radius:2px;transition:transform .25s,opacity .25s;}
+  .nav-burger.open span:nth-child(1){transform:translateY(7.5px) rotate(45deg);}
+  .nav-burger.open span:nth-child(2){opacity:0;}
+  .nav-burger.open span:nth-child(3){transform:translateY(-7.5px) rotate(-45deg);}
+
+  .mobile-menu{display:none;position:fixed;inset:0;top:60px;background:var(--card);z-index:190;flex-direction:column;padding:16px;gap:8px;overflow-y:auto;border-top:1px solid var(--border);}
+  .mobile-menu.open{display:flex;}
+  .mobile-menu .btn{justify-content:flex-start;font-size:16px;padding:12px 16px;border-radius:12px;}
+
+  .mobile-bottom-nav{display:none;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius);font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;transition:all .15s;border:none;}
+  .btn-primary{background:var(--primary);color:white;}
+  .btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);}
+  .btn-accent{background:var(--accent);color:white;}
+  .btn-accent:hover{opacity:.9;transform:translateY(-1px);}
+  .btn-ghost{background:transparent;color:var(--primary);border:2px solid var(--primary);}
+  .btn-ghost:hover{background:var(--primary);color:white;}
+  .btn-sm{padding:5px 12px;font-size:13px;}
+  .btn-danger{background:var(--error);color:white;}
+  .btn-msn{background:linear-gradient(135deg,#6c47ff,#00aeef);color:white;border:none;position:relative;}
+  .btn-msn:hover{opacity:.9;transform:translateY(-1px);}
+  .unread-badge{background:var(--accent);color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+
+  .flash-wrap{position:fixed;top:70px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+  .flash{padding:12px 20px;border-radius:var(--radius);font-weight:600;font-size:14px;box-shadow:var(--shadow);animation:slideIn .3s ease;}
+  .flash.success{background:var(--success);color:white;}
+  .flash.error{background:var(--error);color:white;}
+  @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+  .container{max-width:1200px;margin:0 auto;padding:24px 20px;}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;}
+  .ads-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .ad-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;text-decoration:none;color:var(--text);transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;}
+  .ad-card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,0,0,0.13);}
+  .ad-img{width:100%;height:160px;object-fit:cover;background:var(--bg);}
+  .ad-img-placeholder{width:100%;height:160px;background:linear-gradient(135deg,#e2e8f0,#cbd5e1);display:flex;align-items:center;justify-content:center;font-size:40px;}
+  .ad-body{padding:12px;flex:1;display:flex;flex-direction:column;gap:4px;}
+  .ad-price{font-size:18px;font-weight:800;color:var(--accent);}
+  .ad-title{font-size:14px;font-weight:600;line-height:1.3;}
+  .ad-meta{font-size:12px;color:var(--muted);margin-top:auto;}
+
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-weight:700;font-size:14px;margin-bottom:6px;color:var(--muted);}
+  input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:16px;outline:none;transition:border-color .15s;background:var(--bg);}
+  input:focus,textarea:focus,select:focus{border-color:var(--primary);background:white;}
+  textarea{resize:vertical;min-height:100px;}
+
+  .chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+  .msg{max-width:65%;padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.4;}
+  .msg.mine{align-self:flex-end;background:var(--primary);color:white;border-bottom-right-radius:4px;}
+  .msg.theirs{align-self:flex-start;background:var(--card);border:2px solid var(--border);border-bottom-left-radius:4px;}
+  .msg-time{font-size:11px;opacity:.65;margin-top:4px;}
+  .chat-input{display:flex;gap:8px;padding:12px;background:var(--card);border-top:2px solid var(--border);}
+  .chat-input input{flex:1;}
+
+  .page-header{margin-bottom:24px;}
+  .page-header h1{font-size:26px;font-weight:800;}
+  .page-header p{color:var(--muted);margin-top:4px;}
+  #announce-bar{display:none;background:linear-gradient(90deg,var(--primary),var(--accent));color:white;text-align:center;padding:8px 20px;font-weight:700;font-size:14px;position:relative;}
+  #announce-bar button{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:white;font-size:18px;cursor:pointer;opacity:.8;}
+  img,video{max-width:100%;height:auto;}
+
+  /* ── Глобальный баннер входящего звонка ── */
+  #global-incoming-call{
+    display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);
+    background:#1a1a2e;border:2px solid #22c55e;border-radius:16px;
+    padding:18px 24px;z-index:9998;box-shadow:0 8px 40px rgba(0,0,0,.6);
+    min-width:300px;max-width:90vw;text-align:center;font-family:'Nunito',sans-serif;
+  }
+  #global-incoming-call .gcall-icon{font-size:28px;margin-bottom:6px;}
+  #gcall-name{font-size:17px;font-weight:800;color:#e8eaf6;margin-bottom:2px;}
+  #gcall-num{font-size:12px;color:#7a8ba0;margin-bottom:14px;}
+  #global-incoming-call .gcall-btns{display:flex;gap:12px;justify-content:center;}
+  .gcall-btn{border:none;border-radius:10px;padding:10px 24px;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;}
+  .gcall-btn-accept{background:#22c55e;color:white;}
+  .gcall-btn-decline{background:#ef4444;color:white;}
+  @keyframes ring-pulse{0%,100%{box-shadow:0 8px 40px rgba(0,0,0,.6),0 0 0 0 rgba(34,197,94,.4);}50%{box-shadow:0 8px 40px rgba(0,0,0,.6),0 0 0 12px rgba(34,197,94,0);}}
+  #global-incoming-call.ringing{animation:ring-pulse 1.5s infinite;}
+
+  /* ── Push баннер ── */
+  #push-banner{
+    display:none;position:fixed;bottom:80px;right:16px;z-index:9997;
+    background:#1a1a2e;color:#fff;padding:14px 16px;border-radius:14px;
+    box-shadow:0 4px 24px rgba(0,0,0,0.5);font-family:'Nunito',sans-serif;
+    font-size:14px;max-width:270px;border:1px solid rgba(0,174,239,0.3);
+  }
+  #push-banner b{display:block;margin-bottom:4px;}
+  #push-banner small{opacity:.7;font-size:12px;line-height:1.4;display:block;margin-bottom:10px;}
+  #push-banner .push-btns{display:flex;gap:8px;}
+  #push-allow-btn{flex:1;background:#00aeef;color:#fff;border:none;padding:9px 0;border-radius:9px;
+    cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;}
+  #push-deny-btn{flex:1;background:transparent;color:#7a8ba0;border:1px solid #444;padding:9px 0;
+    border-radius:9px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;}
+
+  @media (max-width: 768px) {
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-burger{display:flex;}
+
+    .mobile-search{display:block;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);}
+    .mobile-search form{display:flex;}
+    .mobile-search input{flex:1;padding:10px 14px;border:2px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-family:inherit;font-size:16px;outline:none;-webkit-appearance:none;}
+    .mobile-search input:focus{border-color:var(--primary);}
+    .mobile-search button{padding:10px 16px;background:var(--primary);color:white;border:none;border-radius:0 var(--radius) var(--radius) 0;cursor:pointer;font-size:18px;}
+
+    .container{padding:12px;}
+    .card{padding:16px;border-radius:12px;}
+    .ads-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+    body{padding-bottom:70px;}
+
+    .flash-wrap{left:12px;right:12px;top:auto;bottom:78px;}
+    .flash{font-size:13px;padding:10px 14px;}
+
+    input[type=text],input[type=email],input[type=password],input[type=number],input[type=search],textarea,select{
+      font-size:16px !important;padding:12px 16px !important;border-radius:12px !important;-webkit-appearance:none;min-height:48px;
+    }
+    textarea{min-height:90px !important;}
+    .btn{padding:11px 18px !important;font-size:15px !important;min-height:44px;}
+    .btn-sm{padding:9px 14px !important;font-size:14px !important;min-height:40px;}
+
+    .mobile-bottom-nav{
+      display:flex;position:fixed;bottom:0;left:0;right:0;height:62px;
+      background:var(--card);border-top:2px solid var(--primary);z-index:200;
+      align-items:stretch;padding-bottom:env(safe-area-inset-bottom,0px);
+    }
+    .mobile-bottom-nav a{
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:3px;font-size:10px;font-family:'Nunito',sans-serif;font-weight:700;
+      color:var(--muted);text-decoration:none;transition:color .15s;position:relative;
+      padding:6px 0;-webkit-tap-highlight-color:transparent;
+    }
+    .mobile-bottom-nav a.active,.mobile-bottom-nav a:hover{color:var(--primary);}
+    .mobile-bottom-nav a svg{width:26px;height:26px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+    .mobile-bottom-nav a.active svg{stroke-width:2.5;}
+    .mobile-bottom-nav .nb-badge{
+      position:absolute;top:4px;right:calc(50% - 20px);
+      background:var(--accent);color:white;border-radius:50%;width:17px;height:17px;
+      font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;
+      border:2px solid var(--card);
+    }
+    .mobile-bottom-nav .nb-badge.show{display:flex;}
+
+    .msg{max-width:85%;}
+    .chat-input{padding:10px 12px;gap:8px;}
+    .chat-input input{font-size:16px !important;padding:12px 14px !important;border-radius:22px !important;}
+    .ad-img,.ad-img-placeholder{height:130px;}
+    .ad-body{padding:10px;}
+    .ad-price{font-size:16px;}
+    .ad-title{font-size:13px;}
+    img,video,iframe{max-width:100%;height:auto;}
+    table{width:100%;display:block;overflow-x:auto;}
+    .page-header h1{font-size:22px;}
+
+    #global-incoming-call{left:12px;right:12px;transform:none;min-width:unset;top:68px;}
+    #push-banner{bottom:70px;right:12px;left:12px;max-width:none;}
+  }
+
+  @media (min-width: 769px) {
+    .mobile-search{display:none;}
+    .mobile-bottom-nav{display:none;}
+  }
+</style>
+<style>
+.device-toggle {
+    position: fixed;
+    right: 15px;
+    bottom: 80px;
+    z-index: 9999;
+    background: #00aeef;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+body.force-mobile {
+    width: 430px; max-width: 100vw; margin: 0 auto;
+    overflow-x: hidden; background: #f5f5f5; padding-bottom: 0 !important;
+}
+body.force-mobile .mobile-bottom-nav { display: none !important; }
+body.force-mobile .container,body.force-mobile .content,body.force-mobile .main,body.force-mobile .messenger-wrapper { width:100%!important;max-width:100%!important;padding:8px!important;margin:0!important; }
+body.force-mobile .messenger-container,body.force-mobile .chat-container,body.force-mobile .chat-box,body.force-mobile .chat-wrapper,body.force-mobile [class*="messenger"],body.force-mobile [class*="chat-container"],body.force-mobile [class*="chat-box"] { display:flex!important;flex-direction:column!important;height:calc(100dvh - 68px)!important;max-height:calc(100dvh - 68px)!important;min-height:400px!important;overflow:hidden!important;box-sizing:border-box!important; }
+body.force-mobile .chat-msgs,body.force-mobile .messages,body.force-mobile .chat-messages,body.force-mobile .chat-body { flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;padding:16px 12px 20px!important;-webkit-overflow-scrolling:touch; }
+body.force-mobile .chat-input { display:flex!important;align-items:center!important;gap:8px!important;padding:12px 12px 18px 12px!important;background:#fff!important;border-top:2px solid var(--border)!important;flex-shrink:0!important;position:-webkit-sticky!important;position:sticky!important;bottom:0!important;z-index:999!important;box-shadow:0 -4px 15px rgba(0,0,0,0.1)!important;width:100%!important;box-sizing:border-box!important; }
+body.force-mobile .chat-input input { flex:1!important;min-width:0!important;font-size:16px!important;padding:14px 18px!important;border-radius:25px!important;height:48px!important; }
+body.force-mobile .chat-input button { flex-shrink:0!important;min-width:44px;height:44px; }
+</style>
+</head>
+<body>
+
+<div id="announce-bar"><span id="announce-text"></span><button onclick="this.parentElement.style.display='none'">×</button></div>
+
+<!-- ── Глобальный баннер входящего звонка ────── -->
+<div id="global-incoming-call">
+  <div class="gcall-icon">📞</div>
+  <div id="gcall-name">Входящий звонок</div>
+  <div id="gcall-num"></div>
+  <div class="gcall-btns">
+    <button class="gcall-btn gcall-btn-accept" onclick="gCallAccept()">✅ Принять</button>
+    <button class="gcall-btn gcall-btn-decline" onclick="gCallDecline()">❌ Отклонить</button>
+  </div>
+</div>
+
+<!-- ── Push баннер ────── -->
+<div id="push-banner">
+  <b>🔔 Включить уведомления?</b>
+  <small>Узнавай о сообщениях, покупках и звонках мгновенно</small>
+  <div class="push-btns">
+    <button id="push-allow-btn">Включить</button>
+    <button id="push-deny-btn">Не сейчас</button>
+  </div>
+</div>
+
+<!-- ── Навигация ──────────────────────────────── -->
+<nav>
+  <a class="nav-logo" href="/">Trade<span>It</span></a>
+  <div class="nav-search">
+    <form action="/" method="get">
+      <input type="text" name="q" placeholder="Поиск объявлений..." value="{{ request.args.get('q','') }}">
+      <button type="submit">🔍</button>
+    </form>
+  </div>
+  <div class="nav-links">
+    {% if session.user_id %}
+      <a href="/ad/new" class="btn btn-accent btn-sm">+ Объявление</a>
+      <a href="/favorites" class="btn btn-ghost btn-sm">❤️</a>
+      <a href="/support" class="btn btn-ghost btn-sm">💬 Поддержка</a>
+      <a href="/messages" class="btn btn-ghost btn-sm" id="msg-btn">
+        ✉️ <span id="unread-badge" class="unread-badge" style="display:none"></span>
+      </a>
+      <a href="/messenger" class="btn btn-msn btn-sm" id="msn-btn" title="Мессенджер">
+        🚀 Мессенджер <span id="msn-badge" class="unread-badge" style="display:none;background:rgba(255,255,255,0.9);color:#6c47ff;"></span>
+      </a>
+      <a href="/wallet" class="btn btn-ghost btn-sm" id="balance-btn">
+        💰 <span id="nav-balance">…</span>
+      </a>
+      <a href="/settings" class="btn btn-ghost btn-sm">⚙️</a>
+      <a href="/user/{{ session.username }}" class="btn btn-ghost btn-sm">👤 {{ session.username }}</a>
+      <a href="/logout" class="btn btn-ghost btn-sm">Выйти</a>
+    {% else %}
+      <a href="/login" class="btn btn-ghost btn-sm">Войти</a>
+      <a href="/register" class="btn btn-primary btn-sm">Регистрация</a>
+    {% endif %}
+    <a href="#" onclick="adminLogin()" class="btn btn-sm" style="background:#1a1a2e;color:white;">🛡️</a>
+  </div>
+  <button class="nav-burger" id="burger" aria-label="Меню" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="mobile-search">
+  <form action="/" method="get">
+    <input type="text" name="q" placeholder="Поиск объявлений..." value="{{ request.args.get('q','') }}">
+    <button type="submit">🔍</button>
+  </form>
+</div>
+
+<div class="mobile-menu" id="mobile-menu">
+  {% if session.user_id %}
+    <a href="/ad/new" class="btn btn-accent">+ Новое объявление</a>
+    <a href="/favorites" class="btn btn-ghost">❤️ Избранное</a>
+    <a href="/messages" class="btn btn-ghost">✉️ Сообщения</a>
+    <a href="/messenger" class="btn btn-msn">🚀 Мессенджер</a>
+    <a href="/support" class="btn btn-ghost">💬 Поддержка</a>
+    <a href="/wallet" class="btn btn-ghost">💰 Кошелёк — <span id="mobile-balance">…</span></a>
+    <a href="/user/{{ session.username }}" class="btn btn-ghost">👤 {{ session.username }}</a>
+    <a href="/settings" class="btn btn-ghost">⚙️ Настройки</a>
+    <a href="/logout" class="btn btn-ghost">🚪 Выйти</a>
+  {% else %}
+    <a href="/login" class="btn btn-ghost">Войти</a>
+    <a href="/register" class="btn btn-primary">Регистрация</a>
+  {% endif %}
+  <a href="#" onclick="adminLogin();closeMobileMenu();" class="btn" style="background:#1a1a2e;color:white;">🛡️ Админка</a>
+</div>
+
+<div class="flash-wrap">
+  {% for cat, msg in get_flashed_messages(with_categories=True) %}
+    <div class="flash {{ cat }}">{{ msg }}</div>
+  {% endfor %}
+</div>
+
+{% block content %}{% endblock %}
+
+{% if session.user_id %}
+<nav class="mobile-bottom-nav" aria-label="Нижнее меню">
+  <a href="/" {% if request.path == '/' %}class="active"{% endif %}>
+    <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg>
+    Главная
+  </a>
+  <a href="/favorites" {% if '/favorites' in request.path %}class="active"{% endif %}>
+    <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Избранное
+  </a>
+  <a href="/ad/new" style="color:var(--accent);">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Продать
+  </a>
+  <a href="/messages" {% if '/messages' in request.path %}class="active"{% endif %} style="position:relative;">
+    <span class="nb-badge" id="nb-msg">0</span>
+    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Чаты
+  </a>
+  <a href="/messenger" {% if '/messenger' in request.path %}class="active"{% endif %} style="position:relative;">
+    <span class="nb-badge" id="nb-msn">0</span>
+    <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    MSN
+  </a>
+</nav>
+{% else %}
+<nav class="mobile-bottom-nav" aria-label="Нижнее меню">
+  <a href="/" {% if request.path == '/' %}class="active"{% endif %}>
+    <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/></svg>
+    Главная
+  </a>
+  <a href="/login">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Войти
+  </a>
+  <a href="/register" style="color:var(--primary);">
+    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+    Регистрация
+  </a>
+</nav>
+{% endif %}
+
+<div id="admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:32px;width:min(340px,90vw);box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px;">🛡️ Вход в админку</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Введи пароль администратора</p>
+    <input type="password" id="admin-pass-input" placeholder="Пароль..." style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:12px;font-size:15px;outline:none;margin-bottom:12px;font-family:inherit;" onkeydown="if(event.key==='Enter')checkAdminPass()">
+    <div id="admin-pass-error" style="color:var(--error);font-size:13px;font-weight:700;margin-bottom:10px;display:none;">Неверный пароль!</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="checkAdminPass()" class="btn btn-primary" style="flex:1;justify-content:center;">Войти</button>
+      <button onclick="closeAdminModal()" class="btn btn-ghost" style="flex:1;justify-content:center;">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<footer style="margin-top:48px;border-top:1px solid var(--border);padding:20px 24px;text-align:center;font-size:12px;color:var(--muted);background:var(--card);">
+  © 2025 TradeIt
+</footer>
+
+<script>
+setTimeout(() => document.querySelectorAll('.flash').forEach(e => e.remove()), 3000);
+
+const searchInputs = document.querySelectorAll('.nav-search input, .mobile-search input');
+const sixSeven = document.createElement('div');
+sixSeven.textContent = 'six seven';
+sixSeven.style.cssText = 'display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;font-size:32px;font-weight:800;padding:14px 40px;border-radius:14px;z-index:9999;letter-spacing:3px;box-shadow:0 4px 32px rgba(0,0,0,0.4);pointer-events:none;';
+document.body.appendChild(sixSeven);
+searchInputs.forEach(inp => inp.addEventListener('input', function() {
+  if (this.value.trim() === '67') { sixSeven.style.display = 'block'; setTimeout(() => sixSeven.style.display = 'none', 2000); }
+}));
+
+const burger = document.getElementById('burger');
+const mobileMenu = document.getElementById('mobile-menu');
+function closeMobileMenu() {
+  mobileMenu.classList.remove('open'); burger.classList.remove('open');
+  burger.setAttribute('aria-expanded', 'false'); document.body.style.overflow = '';
+}
+burger.addEventListener('click', function() {
+  const open = mobileMenu.classList.toggle('open');
+  burger.classList.toggle('open', open);
+  burger.setAttribute('aria-expanded', String(open));
+  document.body.style.overflow = open ? 'hidden' : '';
+});
+mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMobileMenu));
+
+{% if session.user_id %}
+function checkUnread() {
+  fetch('/api/unread').then(r=>r.json()).then(d => {
+    const badge = document.getElementById('unread-badge');
+    if (badge) { badge.textContent = d.count; badge.style.display = d.count > 0 ? 'inline-flex' : 'none'; }
+    const nb = document.getElementById('nb-msg');
+    if (nb) { nb.textContent = d.count; nb.classList.toggle('show', d.count > 0); }
+  }).catch(()=>{});
+}
+checkUnread(); setInterval(checkUnread, 10000);
+
+function checkMsnUnread() {
+  fetch('/api/msn/unread').then(r=>r.json()).then(d => {
+    const badge = document.getElementById('msn-badge');
+    if (badge) { badge.textContent = d.count; badge.style.display = d.count > 0 ? 'inline-flex' : 'none'; }
+    const nb = document.getElementById('nb-msn');
+    if (nb) { nb.textContent = d.count; nb.classList.toggle('show', d.count > 0); }
+  }).catch(()=>{});
+}
+checkMsnUnread(); setInterval(checkMsnUnread, 10000);
+
+function updateBalance() {
+  fetch('/api/balance').then(r=>r.json()).then(d => {
+    const fmt = Number(d.balance).toLocaleString('ru-RU', {maximumFractionDigits:2}) + ' ₽';
+    ['nav-balance','mobile-balance'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = fmt; });
+  }).catch(()=>{});
+}
+updateBalance(); setInterval(updateBalance, 15000);
+
+// ══════════════════════════════════════════════════
+// ГЛОБАЛЬНЫЙ ВХОДЯЩИЙ ЗВОНОК
+// ══════════════════════════════════════════════════
+let _gCallId = null, _gCallCallerId = null;
+let _gRingCtx = null, _gRingInterval = null, _gRingActive = false;
+const _onCallPage = window.location.pathname.startsWith('/messenger/call/');
+
+function _gAudio() {
+  if (!_gRingCtx) _gRingCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_gRingCtx.state === 'suspended') _gRingCtx.resume();
+  return _gRingCtx;
+}
+function _gBeep(freq, dur, vol, type, when) {
+  try {
+    const ctx = _gAudio(), t = ctx.currentTime + (when||0);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = type||'square'; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol||0.3, t+0.01);
+    g.gain.linearRampToValueAtTime(vol||0.3, t+dur-0.04);
+    g.gain.linearRampToValueAtTime(0, t+dur);
+    o.start(t); o.stop(t+dur);
+  } catch(e) {}
+}
+function _gRing() {
+  _gBeep(880,0.14,0.28,'square',0);   _gBeep(660,0.14,0.28,'square',0.17);
+  _gBeep(880,0.14,0.28,'square',0.37); _gBeep(660,0.14,0.28,'square',0.54);
+}
+function _gStartRing() {
+  if (_gRingActive) return;
+  _gRingActive = true; _gRing();
+  _gRingInterval = setInterval(()=>{ if(_gRingActive) _gRing(); }, 2800);
+}
+function _gStopRing() {
+  _gRingActive = false;
+  clearInterval(_gRingInterval); _gRingInterval = null;
+}
+async function gCallAccept() {
+  _gStopRing();
+  document.getElementById('global-incoming-call').style.display = 'none';
+  if (_gCallId) window.location.href = '/messenger/call/' + _gCallId;
+}
+async function gCallDecline() {
+  _gStopRing();
+  document.getElementById('global-incoming-call').style.display = 'none';
+  if (_gCallId && _gCallCallerId) {
+    await fetch('/api/msn/call/signal', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({call_id:_gCallId, type:'reject', payload:'', to_id:_gCallCallerId})
+    }).catch(()=>{});
+  }
+  _gCallId = null; _gCallCallerId = null;
+}
+async function _gCheckIncoming() {
+  if (_onCallPage) return;
+  try {
+    const r = await fetch('/api/msn/call/incoming');
+    if (!r.ok) return;
+    const d = await r.json();
+    const box = document.getElementById('global-incoming-call');
+    if (d.incoming) {
+      if (_gCallId !== d.call.call_id) {
+        _gCallId = d.call.call_id;
+        _gCallCallerId = d.call.caller_id;
+        document.getElementById('gcall-name').textContent = (d.call.caller_name || 'Неизвестный') + ' звонит тебе';
+        document.getElementById('gcall-num').textContent = d.call.caller_num || '';
+        box.style.display = 'block'; box.classList.add('ringing'); _gStartRing();
+      }
+    } else {
+      if (_gCallId) {
+        _gStopRing(); box.style.display = 'none'; box.classList.remove('ringing');
+        _gCallId = null; _gCallCallerId = null;
+      }
+    }
+  } catch(e) {}
+}
+document.addEventListener('click', ()=>{ try{_gAudio();}catch(e){} }, {once:true});
+document.addEventListener('touchstart', ()=>{ try{_gAudio();}catch(e){} }, {once:true});
+_gCheckIncoming();
+setInterval(_gCheckIncoming, 3000);
+
+// ══════════════════════════════════════════════════
+// WEB PUSH УВЕДОМЛЕНИЯ
+// ══════════════════════════════════════════════════
+(async function initPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  let reg;
+  try {
+    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+  } catch (e) { console.warn('[Push] SW ошибка:', e); return; }
+
+  const perm = Notification.permission;
+  if (perm === 'denied') return;
+
+  let sub = await reg.pushManager.getSubscription();
+
+  if (sub) {
+    _pushSave(sub); return;
+  }
+
+  if (perm === 'granted') {
+    await _pushSubscribe(reg); return;
+  }
+
+  // Разрешение не запрашивалось — показываем баннер через 3 сек
+  const deniedUntil = localStorage.getItem('pushDeniedUntil');
+  if (deniedUntil && Date.now() < Number(deniedUntil)) return;
+
+  setTimeout(() => {
+    document.getElementById('push-banner').style.display = 'block';
+  }, 3000);
+
+  document.getElementById('push-allow-btn').onclick = async () => {
+    document.getElementById('push-banner').style.display = 'none';
+    await _pushSubscribe(reg);
+  };
+  document.getElementById('push-deny-btn').onclick = () => {
+    document.getElementById('push-banner').style.display = 'none';
+    localStorage.setItem('pushDeniedUntil', Date.now() + 3 * 24 * 60 * 60 * 1000);
+  };
+})();
+
+async function _pushSubscribe(reg) {
+  const permResult = await Notification.requestPermission();
+  if (permResult !== 'granted') return;
+  let vapidKey;
+  try {
+    const res = await fetch('/api/push/vapid-public-key');
+    vapidKey = (await res.json()).key;
+  } catch (e) { console.warn('[Push] VAPID ключ не получен:', e); return; }
+
+  function urlBase64ToUint8Array(b64) {
+    const pad = '='.repeat((4 - b64.length % 4) % 4);
+    const base64 = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  }
+
+  let sub;
+  try {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+  } catch (e) { console.warn('[Push] Подписка не удалась:', e); return; }
+  _pushSave(sub);
+}
+
+async function _pushSave(sub) {
+  try {
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub.toJSON()),
+    });
+  } catch (e) { console.warn('[Push] Сохранение не удалось:', e); }
+}
+// ══════════════════════════════════════════════════
+{% endif %}
+
+fetch('/api/announcements').then(r=>r.json()).then(d => {
+  if (d.items && d.items.length > 0) {
+    document.getElementById('announce-text').textContent = '📢 ' + d.items[0].text;
+    document.getElementById('announce-bar').style.display = 'block';
+  }
+}).catch(()=>{});
+
+function adminLogin() {
+  document.getElementById('admin-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('admin-pass-input').focus(), 50);
+}
+function closeAdminModal() {
+  document.getElementById('admin-modal').style.display = 'none';
+  document.getElementById('admin-pass-input').value = '';
+  document.getElementById('admin-pass-error').style.display = 'none';
+}
+function checkAdminPass() {
+  const pass = document.getElementById('admin-pass-input').value;
+  fetch('/admin/auth', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password: pass})})
+    .then(r=>r.json()).then(d => {
+      if (d.ok) { window.location.href = '/admin'; }
+      else {
+        document.getElementById('admin-pass-error').style.display = 'block';
+        document.getElementById('admin-pass-input').value = '';
+        document.getElementById('admin-pass-input').focus();
+      }
+    });
+}
+document.getElementById('admin-modal').addEventListener('click', function(e) { if (e.target === this) closeAdminModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdminModal(); });
+</script>
+
+<button id="deviceToggle" class="device-toggle">📱 Телефонный режим</button>
+<script>
+const btn = document.getElementById('deviceToggle');
+function applyMode(mode) {
+  if (mode === 'mobile') {
+    document.body.classList.add('force-mobile');
+    btn.innerText = '💻 ПК режим';
+    localStorage.setItem('viewMode', 'mobile');
+  } else {
+    document.body.classList.remove('force-mobile');
+    btn.innerText = '📱 Телефонный режим';
+    localStorage.setItem('viewMode', 'desktop');
+  }
+}
+const savedMode = localStorage.getItem('viewMode') || 'desktop';
+applyMode(savedMode);
+btn.onclick = () => {
+  const current = document.body.classList.contains('force-mobile') ? 'mobile' : 'desktop';
+  applyMode(current === 'desktop' ? 'mobile' : 'desktop');
+};
+</script>
+</body>
+</html>

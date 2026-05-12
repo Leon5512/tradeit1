@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Избранное{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header" style="margin-top:20px;">
+    <h1>❤️ Избранное</h1>
+    <p>Сохранённые объявления</p>
+  </div>
+  {% if ads %}
+  <div class="ads-grid">
+    {% for ad in ads %}
+    <a href="/ad/{{ ad.id }}" class="ad-card">
+      {% if ad.image %}<img src="/static/uploads/{{ ad.image }}" class="ad-img" alt="{{ ad.title }}">
+      {% else %}<div class="ad-img-placeholder">🏷️</div>{% endif %}
+      <div class="ad-body">
+        <div class="ad-price">{{ "{:,.0f}".format(ad.price) }} ₽</div>
+        <div class="ad-title">{{ ad.title }}</div>
+        <div class="ad-meta">{{ ad.city }} · {{ ad.username }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:60px;color:var(--muted);">
+    <div style="font-size:60px;margin-bottom:16px;">❤️</div>
+    <h2>Нет избранных</h2>
+    <p>Нажми ❤️ на любом объявлении чтобы сохранить</p>
+    <a href="/" class="btn btn-primary" style="margin-top:20px;">Смотреть объявления</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Редактировать объявление{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px;">
+  <div class="card" style="margin-top:20px;">
+    <div class="page-header">
+      <h1>✏️ Редактировать объявление</h1>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Заголовок *</label>
+        <input type="text" name="title" required value="{{ ad.title }}">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label>Цена (₽) *</label>
+          <input type="number" name="price" required value="{{ ad.price }}" min="0">
+        </div>
+        <div class="form-group">
+          <label>Город *</label>
+          <input type="text" name="city" required value="{{ ad.city }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Категория *</label>
+        <select name="category" required>
+          {% for cat in ['Электроника','Авто','Недвижимость','Одежда и обувь','Мебель и интерьер','Детские товары','Спорт и отдых','Животные','Работа','Услуги','Другое'] %}
+          <option {% if ad.category==cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Описание</label>
+        <textarea name="description">{{ ad.description }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Новое фото (оставь пустым чтобы не менять)</label>
+        {% if ad.image %}
+          <img src="/static/uploads/{{ ad.image }}" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:8px;">
+        {% endif %}
+        <input type="file" name="image" accept="image/*" style="background:white;cursor:pointer;">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;padding:12px;">💾 Сохранить</button>
+        <a href="/ad/{{ ad.id }}" class="btn btn-ghost" style="flex:1;justify-content:center;padding:12px;">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

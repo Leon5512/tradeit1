@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Подтверждение входа · TradeIt</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--primary:#00aeef;--primary-dark:#0090cc;--text:#1a1a2e;--muted:#7a8ba0;--border:#e2e8f0;--error:#ef4444;--radius:14px;--shadow:0 2px 16px rgba(0,0,0,0.08);}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 32px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:18px;text-align:center;}
+  .icon{font-size:48px;}
+  h1{font-size:22px;font-weight:800;}
+  .subtitle{color:var(--muted);font-size:14px;line-height:1.6;}
+  .code-input{text-align:center;font-size:28px;letter-spacing:10px;font-weight:800;padding:16px;border:2px solid var(--border);border-radius:var(--radius);width:100%;font-family:inherit;outline:none;transition:.15s;}
+  .code-input:focus{border-color:var(--primary);}
+  .btn{width:100%;padding:14px;font-size:16px;font-weight:800;background:var(--primary);color:white;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;transition:.15s;}
+  .btn:hover{background:var(--primary-dark);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-resend{background:transparent;border:2px solid var(--border);color:var(--muted);font-size:14px;padding:10px;}
+  .btn-resend:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:transparent;}
+  .err{color:var(--error);font-size:13px;font-weight:700;display:none;}
+  .ok{color:#22c55e;font-size:13px;font-weight:700;display:none;}
+  .back{color:var(--muted);font-size:13px;text-decoration:none;}
+  .back:hover{color:var(--text);}
+  .method-badge{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">{% if method == 'email' %}📧{% else %}📱{% endif %}</div>
+  <h1>Подтверждение входа</h1>
+
+  {% if method == 'email' %}
+    <p class="subtitle">Мы отправили 6-значный код на твою почту.<br>Введи его ниже.</p>
+    <div class="method-badge">📧 Email</div>
+  {% else %}
+    <p class="subtitle">Введи 6-значный код из приложения<br><b>Google Authenticator</b> или <b>Authy</b></p>
+    <div class="method-badge">📱 Приложение</div>
+  {% endif %}
+
+  <input class="code-input" id="totp-code" type="text" inputmode="numeric"
+         pattern="[0-9]*" maxlength="6" placeholder="000000"
+         autocomplete="one-time-code" autofocus>
+
+  <div class="err" id="code-err"></div>
+  <div class="ok"  id="code-ok"></div>
+
+  <button class="btn" id="verify-btn" onclick="verify()">Подтвердить →</button>
+
+  {% if method == 'email' %}
+  <button class="btn btn-resend" id="resend-btn" onclick="resendCode()">📧 Отправить код повторно</button>
+  {% endif %}
+
+  <a href="/logout" class="back">← Войти с другим аккаунтом</a>
+</div>
+
+<script>
+const METHOD = {{ method | tojson }};
+
+const inp = document.getElementById('totp-code');
+
+// Автоотправка при вводе 6 цифр
+inp.addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g,'');
+  if(this.value.length === 6) verify();
+});
+inp.addEventListener('keydown', e => { if(e.key==='Enter') verify(); });
+
+async function verify() {
+  const code = inp.value.replace(/\D/g,'');
+  const err  = document.getElementById('code-err');
+  const btn  = document.getElementById('verify-btn');
+  err.style.display = 'none';
+  if(code.length !== 6) return;
+  btn.disabled = true; btn.textContent = '⏳ Проверяем...';
+  const r = await fetch('/login/2fa/verify', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({code})
+  });
+  const d = await r.json();
+  if(d.ok) {
+    window.location.href = d.redirect || '/';
+  } else {
+    err.textContent = d.msg || 'Неверный код. Попробуй ещё раз.';
+    err.style.display = 'block';
+    inp.value = ''; inp.focus();
+    btn.disabled = false; btn.textContent = 'Подтвердить →';
+  }
+}
+
+// Повторная отправка (только для email)
+async function resendCode() {
+  const btn = document.getElementById('resend-btn');
+  const ok  = document.getElementById('code-ok');
+  const err = document.getElementById('code-err');
+  err.style.display = 'none'; ok.style.display = 'none';
+  btn.disabled = true; btn.textContent = '⏳ Отправляем...';
+  const r = await fetch('/login/2fa/resend', {method:'POST'});
+  const d = await r.json();
+  if(d.ok) {
+    ok.textContent = '✓ Код отправлен повторно!';
+    ok.style.display = 'block';
+    let sec = 60;
+    const iv = setInterval(() => {
+      sec--;
+      btn.textContent = `Отправить повторно (${sec}s)`;
+      if(sec <= 0) { clearInterval(iv); btn.disabled=false; btn.textContent='📧 Отправить код повторно'; }
+    }, 1000);
+  } else {
+    err.textContent = d.msg || 'Ошибка отправки';
+    err.style.display = 'block';
+    btn.disabled=false; btn.textContent='📧 Отправить код повторно';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}TradeIt-продажа вещей{% endblock %}
+{% block content %}
+<div class="container">
+  <div style="display:flex; gap:20px; align-items:flex-start;">
+
+    <!-- Фильтры -->
+    <div style="width:200px; flex-shrink:0;">
+      <div class="card">
+        <h3 style="font-size:15px; font-weight:800; margin-bottom:12px;">Категории</h3>
+        <a href="/" style="display:block; padding:6px 10px; border-radius:8px; text-decoration:none; color:var(--text); font-size:14px; font-weight:{% if not cat %}700{% else %}400{% endif %}; background:{% if not cat %}var(--bg){% else %}transparent{% endif %}; margin-bottom:4px;">
+          Все категории
+        </a>
+        {% for c in categories %}
+        <a href="/?cat={{ c.category }}" style="display:block; padding:6px 10px; border-radius:8px; text-decoration:none; color:var(--text); font-size:14px; font-weight:{% if cat==c.category %}700{% else %}400{% endif %}; background:{% if cat==c.category %}var(--bg){% else %}transparent{% endif %}; margin-bottom:4px;">
+          {{ c.category }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Объявления -->
+    <div style="flex:1;">
+      <div class="page-header">
+        <h1>{% if q %}Результаты: «{{ q }}»{% elif cat %}{{ cat }}{% else %}Свежие объявления{% endif %}</h1>
+        <p>Найдено: {{ ads|length }}</p>
+      </div>
+
+      {% if ads %}
+      <div class="ads-grid">
+        {% for ad in ads %}
+        <a href="/ad/{{ ad.id }}" class="ad-card">
+          {% if ad.image %}
+            <img src="/static/uploads/{{ ad.image }}" class="ad-img" alt="{{ ad.title }}">
+          {% else %}
+            <div class="ad-img-placeholder">🏷️</div>
+          {% endif %}
+          <div class="ad-body">
+            <div class="ad-price">{{ "{:,.0f}".format(ad.price) }} ₽</div>
+            <div class="ad-title">{{ ad.title }}</div>
+            <div class="ad-meta">{{ ad.city }} · {{ ad.username }}</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card" style="text-align:center; padding:60px; color:var(--muted);">
+        <div style="font-size:60px; margin-bottom:16px;">🔍</div>
+        <h2>Объявлений не найдено</h2>
+        <p>Попробуй другой запрос или <a href="/ad/new" style="color:var(--primary);">подай первое объявление</a></p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

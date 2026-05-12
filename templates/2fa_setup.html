@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Настройка 2FA · TradeIt{% endblock %}
+{% block content %}
+<style>
+  .tfa-wrap{max-width:520px;margin:40px auto;padding:0 16px;}
+  .tfa-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px;display:flex;flex-direction:column;gap:22px;}
+  .tfa-card h1{font-size:22px;font-weight:800;}
+  .tfa-card>p{color:var(--muted);font-size:14px;line-height:1.6;margin-top:-10px;}
+  .method-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .method-card{border:2px solid var(--border);border-radius:14px;padding:18px 14px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:8px;text-align:center;}
+  .method-card:hover{border-color:var(--primary);}
+  .method-card.active{border-color:var(--primary);background:rgba(0,174,239,0.06);}
+  .method-card .mc-icon{font-size:32px;}
+  .method-card .mc-title{font-weight:800;font-size:15px;}
+  .method-card .mc-desc{font-size:12px;color:var(--muted);line-height:1.4;}
+  .panel{display:none;flex-direction:column;gap:18px;}
+  .panel.show{display:flex;}
+  .qr-box{display:flex;justify-content:center;padding:16px;background:#fff;border-radius:12px;}
+  .qr-box img{width:190px;height:190px;}
+  .secret-box{background:var(--bg);border:2px dashed var(--border);border-radius:10px;padding:12px 16px;font-family:monospace;font-size:14px;font-weight:700;text-align:center;letter-spacing:3px;color:var(--text);cursor:pointer;transition:.15s;word-break:break-all;}
+  .secret-box:hover{border-color:var(--primary);}
+  .secret-hint{font-size:12px;color:var(--muted);text-align:center;margin-top:-10px;}
+  .steps{display:flex;flex-direction:column;gap:10px;}
+  .step{display:flex;gap:10px;align-items:flex-start;}
+  .step-num{width:24px;height:24px;min-width:24px;border-radius:50%;background:var(--primary);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;}
+  .step-text{font-size:13px;color:var(--muted);line-height:1.5;}
+  .step-text b{color:var(--text);}
+  .code-group{display:flex;flex-direction:column;gap:8px;}
+  .code-group label{font-weight:700;font-size:14px;}
+  .code-input{text-align:center !important;font-size:26px !important;letter-spacing:8px !important;font-weight:800 !important;padding:14px !important;border-radius:var(--radius) !important;}
+  .err-msg{color:var(--error);font-size:13px;font-weight:700;display:none;}
+  .ok-msg{color:#22c55e;font-size:13px;font-weight:700;display:none;}
+  .btn-main{width:100%;padding:14px;font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--primary-dark,#0090cc));color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;transition:.15s;}
+  .btn-main:hover{opacity:.9;transform:translateY(-1px);}
+  .btn-main:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+  @media(max-width:480px){.method-pick{grid-template-columns:1fr;}}
+</style>
+
+<div class="tfa-wrap">
+  <div class="tfa-card">
+    <h1>🔐 Двухфакторная аутентификация</h1>
+    <p>Выбери удобный способ защиты аккаунта</p>
+
+    <div class="method-pick">
+      <div class="method-card" id="pick-totp" onclick="selectMethod('totp')">
+        <div class="mc-icon">📱</div>
+        <div class="mc-title">Приложение</div>
+        <div class="mc-desc">Google Authenticator или Authy — код меняется каждые 30 сек</div>
+      </div>
+      <div class="method-card" id="pick-email" onclick="selectMethod('email')">
+        <div class="mc-icon">📧</div>
+        <div class="mc-title">Email</div>
+        <div class="mc-desc">Код на почту при каждом входе</div>
+      </div>
+    </div>
+
+    <!-- TOTP -->
+    <div class="panel" id="panel-totp">
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Установи <b>Google Authenticator</b> или <b>Authy</b></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Отсканируй QR-код или введи ключ вручную</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Введи <b>6-значный код</b> из приложения для подтверждения</div></div>
+      </div>
+      <div class="qr-box"><img src="{{ qr_url }}" alt="QR"></div>
+      <div>
+        <div class="secret-box" onclick="copySecret()">{{ secret }}</div>
+        <div class="secret-hint">Нажми чтобы скопировать ключ</div>
+      </div>
+      <div class="code-group">
+        <label>Код из приложения</label>
+        <input class="code-input" id="totp-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+        <div class="err-msg" id="totp-err"></div>
+      </div>
+      <button class="btn-main" id="totp-btn" onclick="enableTotp()">✅ Включить</button>
+    </div>
+
+    <!-- Email -->
+    <div class="panel" id="panel-email">
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Нажми <b>«Отправить код»</b> — письмо придёт на твою почту</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Введи <b>6-значный код</b> из письма</div></div>
+      </div>
+      <div class="code-group">
+        <label>Код из письма</label>
+        <input class="code-input" id="email-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+        <div class="err-msg" id="email-err"></div>
+        <div class="ok-msg" id="email-ok">✓ Код отправлен! Проверь почту.</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-main" id="email-send-btn" onclick="sendEmailCode()" style="flex:1;min-width:140px;">📧 Отправить код</button>
+        <button class="btn-main" id="email-verify-btn" onclick="enableEmail()" style="flex:1;min-width:140px;display:none;">✅ Включить</button>
+      </div>
+    </div>
+
+    <a href="/settings" style="text-align:center;color:var(--muted);font-size:13px;text-decoration:none;">← Отмена</a>
+  </div>
+</div>
+
+<script>
+const SECRET = {{ secret | tojson }};
+
+function selectMethod(m) {
+  ['totp','email'].forEach(x => {
+    document.getElementById('pick-'+x).classList.toggle('active', x===m);
+    document.getElementById('panel-'+x).classList.toggle('show', x===m);
+  });
+}
+
+function copySecret() {
+  navigator.clipboard.writeText(SECRET).then(() => {
+    const b = document.querySelector('.secret-box');
+    const orig = b.textContent;
+    b.textContent = '✓ Скопировано!';
+    setTimeout(() => b.textContent = orig, 1500);
+  });
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = 'block';
+}
+
+// ── TOTP ──
+document.getElementById('totp-code').addEventListener('keydown', e => { if(e.key==='Enter') enableTotp(); });
+
+async function enableTotp() {
+  const code = document.getElementById('totp-code').value.trim();
+  const btn  = document.getElementById('totp-btn');
+  document.getElementById('totp-err').style.display = 'none';
+  if(code.length !== 6) { showErr('totp-err','Введи 6-значный код'); return; }
+  btn.disabled = true;
+  const r = await fetch('/settings/2fa/enable', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({code, method:'totp'})
+  });
+  const d = await r.json();
+  if(d.ok) { window.location.href = '/settings?tfa=1'; }
+  else { showErr('totp-err', d.msg||'Неверный код'); btn.disabled=false; document.getElementById('totp-code').value=''; document.getElementById('totp-code').focus(); }
+}
+
+// ── Email ──
+async function sendEmailCode() {
+  const btn = document.getElementById('email-send-btn');
+  document.getElementById('email-err').style.display = 'none';
+  btn.disabled = true; btn.textContent = '⏳ Отправляем...';
+  const r = await fetch('/settings/2fa/send-email-code', {method:'POST'});
+  const d = await r.json();
+  if(d.ok) {
+    document.getElementById('email-ok').style.display = 'block';
+    document.getElementById('email-verify-btn').style.display = 'flex';
+    let sec = 60;
+    const iv = setInterval(() => {
+      sec--;
+      btn.textContent = `Отправить снова (${sec}s)`;
+      if(sec <= 0) { clearInterval(iv); btn.disabled=false; btn.textContent='📧 Отправить снова'; }
+    }, 1000);
+  } else {
+    showErr('email-err', d.msg||'Ошибка отправки');
+    btn.disabled=false; btn.textContent='📧 Отправить код';
+  }
+}
+
+document.getElementById('email-code').addEventListener('keydown', e => { if(e.key==='Enter') enableEmail(); });
+
+async function enableEmail() {
+  const code = document.getElementById('email-code').value.trim();
+  const btn  = document.getElementById('email-verify-btn');
+  document.getElementById('email-err').style.display = 'none';
+  if(code.length !== 6) { showErr('email-err','Введи 6-значный код'); return; }
+  btn.disabled = true;
+  const r = await fetch('/settings/2fa/enable', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({code, method:'email'})
+  });
+  const d = await r.json();
+  if(d.ok) { window.location.href = '/settings?tfa=1'; }
+  else { showErr('email-err', d.msg||'Неверный код'); btn.disabled=false; }
+}
+</script>
+{% endblock %}

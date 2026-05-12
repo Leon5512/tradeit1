@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Звонок · {{ other.msn_username }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--primary:#6c47ff;--primary2:#00aeef;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--success:#22c55e;--error:#ef4444;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;user-select:none;padding:16px;}
+
+  .call-card{background:var(--card);border-radius:24px;padding:40px 32px 32px;width:360px;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:0;border:1px solid var(--border);position:relative;}
+
+  .call-av{width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;overflow:hidden;margin-bottom:20px;flex-shrink:0;}
+  .call-av img{width:100%;height:100%;object-fit:cover;}
+
+  .call-name{font-size:24px;font-weight:800;margin-bottom:6px;text-align:center;}
+  .call-num{font-size:14px;color:var(--muted);margin-bottom:24px;}
+
+  .call-status{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:20px;min-height:22px;text-align:center;}
+  .call-status.active{color:var(--success);}
+  .call-status.ringing{animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .call-timer{font-size:28px;font-weight:800;color:var(--success);margin-bottom:20px;font-variant-numeric:tabular-nums;min-height:36px;}
+
+  /* Video */
+  .video-wrap{position:relative;width:100%;border-radius:16px;overflow:hidden;background:#000;margin-bottom:20px;display:none;}
+  .video-wrap.show{display:block;}
+  #remote-video{width:100%;max-height:200px;object-fit:cover;display:block;}
+  #local-video{position:absolute;bottom:8px;right:8px;width:80px;height:60px;border-radius:8px;object-fit:cover;border:2px solid var(--primary);}
+
+  /* Controls */
+  .call-controls{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  .ctrl-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;transition:.15s;flex-shrink:0;}
+  .ctrl-btn:hover{transform:scale(1.08);}
+  .ctrl-btn:active{transform:scale(.93);}
+  .btn-end{background:var(--error);}
+  .btn-mic{background:var(--card2);border:1px solid var(--border);}
+  .btn-mic.muted{background:#3a1a1a;border-color:var(--error);}
+  .btn-spk{background:var(--card2);border:1px solid var(--border);}
+  .btn-cam{background:var(--card2);border:1px solid var(--border);}
+  .btn-cam.off{background:#3a1a1a;border-color:var(--error);}
+  .btn-accept{background:var(--success);width:72px;height:72px;font-size:28px;}
+  .btn-reject{background:var(--error);width:72px;height:72px;font-size:28px;}
+  .gear-btn{background:none;border:1px solid var(--border);border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:18px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;}
+  .gear-btn:hover{border-color:var(--primary);color:var(--primary);}
+  .gear-btn.active{border-color:var(--primary);color:var(--primary);background:rgba(108,71,255,.12);}
+
+  .incoming-btns{display:flex;gap:40px;align-items:center;justify-content:center;}
+
+  /* Quality indicator */
+  .quality{position:absolute;top:16px;right:16px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+  .quality-dot{width:8px;height:8px;border-radius:50%;background:var(--success);}
+  .quality-dot.bad{background:var(--error);}
+  .quality-dot.mid{background:#f59e0b;}
+
+  /* Ringtone selector */
+  .ringtone-wrap{margin-top:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);}
+  .ringtone-wrap select{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer;outline:none;}
+  .ringtone-wrap select:focus{border-color:var(--primary);}
+  .btn-preview{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 9px;font-size:13px;transition:.15s;}
+  .btn-preview:hover{border-color:var(--primary);color:var(--primary);}
+
+  /* Device panel */
+  .device-panel{width:100%;margin-top:14px;border-radius:14px;border:1px solid transparent;overflow:hidden;transition:max-height .35s ease, border-color .35s ease;}
+  .device-panel.hidden{max-height:0;}
+  .device-panel.visible{max-height:400px;background:var(--card2);border-color:var(--border);}
+  .device-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.03em;user-select:none;}
+  .device-header:hover{color:var(--text);}
+  .device-rows{padding:0 14px 12px;}
+  .device-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--border);}
+  .device-row:first-child{border-top:none;}
+  .device-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+  .device-select{flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-family:'Nunito',sans-serif;font-size:12px;cursor:pointer;outline:none;min-width:0;}
+  .device-select:focus{border-color:var(--primary);}
+  .device-select:disabled{opacity:.4;cursor:not-allowed;}
+  .device-hint{font-size:11px;color:var(--muted);padding:6px 0 4px;font-style:italic;}
+
+  /* ── ИСПРАВЛЕНИЕ: экран-заглушка для iOS/Android ─────────────── */
+  /* Показывается звонящему пока идёт вызов — кнопка нужна для    */
+  /* user gesture, без которого getUserMedia не работает на мобиле */
+  #mic-gate{display:none;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;padding:16px;background:rgba(108,71,255,.1);border-radius:16px;border:1px solid var(--primary);width:100%;}
+  #mic-gate p{font-size:13px;color:var(--muted);text-align:center;}
+  #btn-allow-mic{background:var(--primary);color:#fff;border:none;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;width:100%;}
+  #btn-allow-mic:active{opacity:.85;}
+</style>
+</head>
+<body>
+
+<div class="call-card" id="call-card">
+  <div class="quality" id="quality-ind" style="display:none;">
+    <div class="quality-dot" id="quality-dot"></div>
+    <span id="quality-label">хорошее</span>
+  </div>
+
+  <div class="call-av" id="av">
+    {% if other.avatar %}<img src="/static/uploads/{{ other.avatar }}">{% else %}{{ other.msn_username[0].upper() }}{% endif %}
+  </div>
+  <div class="call-name">{{ other.msn_username }}</div>
+  <div class="call-num">{{ other.msn_number }}</div>
+  <div class="call-status ringing" id="call-status">
+    {% if is_caller %}Вызов...{% else %}Входящий звонок{% endif %}
+  </div>
+  <div class="call-timer" id="call-timer" style="display:none;">0:00</div>
+
+  <div class="video-wrap" id="video-wrap">
+    <video id="remote-video" autoplay playsinline></video>
+    <video id="local-video" autoplay playsinline muted></video>
+  </div>
+
+  <audio id="remote-audio" autoplay playsinline style="display:none;"></audio>
+
+  <!--
+    ✅ ИСПРАВЛЕНИЕ ДЛЯ МОБИЛА:
+    Блок-заглушка для звонящего (IS_CALLER).
+    getUserMedia нельзя вызывать автоматически на iOS/Android —
+    нужно обязательно из обработчика нажатия.
+    Показываем кнопку, по клику на которую запрашиваем микрофон.
+  -->
+  {% if is_caller %}
+  <div id="mic-gate">
+    <p>📱 Нажми чтобы разрешить микрофон и начать звонок</p>
+    <button id="btn-allow-mic" onclick="onCallerReady()">🎤 Начать звонок</button>
+  </div>
+  {% endif %}
+
+  {% if not is_caller %}
+  <div class="incoming-btns" id="incoming-btns">
+    <button class="ctrl-btn btn-reject" onclick="rejectCall()" title="Отклонить">📵</button>
+    <button class="ctrl-btn btn-accept" onclick="acceptCall()" title="Принять">📞</button>
+  </div>
+  {% endif %}
+
+  <div class="call-controls" id="call-controls" style="display:none;">
+    <button class="ctrl-btn btn-mic" id="btn-mic" onclick="toggleMic()" title="Микрофон">🎤</button>
+    <button class="ctrl-btn btn-cam off" id="btn-cam" onclick="toggleCamera()" title="Включить камеру">📷</button>
+    <button class="ctrl-btn btn-end" onclick="hangUp()" title="Завершить">📵</button>
+    <button class="ctrl-btn btn-spk" id="btn-spk" onclick="toggleSpk()" title="Звук">🔊</button>
+    <button class="gear-btn" id="btn-gear" onclick="toggleDevicePanel()" title="Настройки устройств">⚙️</button>
+  </div>
+
+  <div class="device-panel hidden" id="device-panel">
+    <div class="device-header" onclick="toggleDevicePanel()">
+      <span>🎛️ Устройства</span>
+      <span id="panel-arrow">▼</span>
+    </div>
+    <div class="device-rows">
+      <div class="device-row">
+        <span class="device-icon">🎤</span>
+        <select class="device-select" id="sel-mic" onchange="switchMic(this.value)">
+          <option>Загрузка...</option>
+        </select>
+      </div>
+      <div class="device-row">
+        <span class="device-icon">🔊</span>
+        <select class="device-select" id="sel-spk" onchange="switchSpk(this.value)">
+          <option>Загрузка...</option>
+        </select>
+      </div>
+      <div class="device-row">
+        <span class="device-icon">📷</span>
+        <select class="device-select" id="sel-cam" onchange="switchCam(this.value)">
+          <option>Загрузка...</option>
+        </select>
+      </div>
+      <div class="device-hint" id="spk-hint" style="display:none;">
+        ⚠️ Смена динамика не поддерживается этим браузером (используйте Chrome)
+      </div>
+    </div>
+  </div>
+
+  <div class="ringtone-wrap" id="ringtone-selector">
+    <span>🎵</span>
+    <select id="ringtone-select" onchange="changeRingtone(this.value)">
+      <option value="classic">Классический</option>
+      <option value="modern">Современный</option>
+      <option value="retro">Ретро</option>
+      <option value="soft">Мягкий</option>
+      <option value="urgent">Срочный</option>
+    </select>
+    <button class="btn-preview" onclick="previewRingtone()">▶</button>
+  </div>
+</div>
+
+<script>
+const CALL_ID   = {{ call.call_id | tojson }};
+const IS_CALLER = {{ 'true' if is_caller else 'false' }};
+const ME_ID     = {{ me.id }};
+const OTHER_ID  = {{ other.id }};
+
+const ICE_SERVERS = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp'
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  }
+]};
+
+let pc              = null;
+let localStream     = null;
+let lastSignalId    = 0;
+let callTimer       = null;
+let callSeconds     = 0;
+let micMuted        = false;
+let camOn           = false;
+let pollInterval    = null;
+let devicePanelOpen = false;
+let remoteAudioStream = null;
+
+function log(msg) { console.log('[MSN Call]', msg); }
+
+// ══════════════════════════════════════════════
+// ── ЗВУКИ
+// ══════════════════════════════════════════════
+let audioCtx     = null;
+let ringInterval = null;
+let ringActive   = false;
+let currentRingtone = localStorage.getItem('msn_ringtone') || 'classic';
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq, duration, volume=0.3, type='sine', when=0) {
+  const ctx = getAudioCtx();
+  const t = ctx.currentTime + when;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(volume, t + 0.01);
+  gain.gain.linearRampToValueAtTime(volume, t + duration - 0.05);
+  gain.gain.linearRampToValueAtTime(0, t + duration);
+  osc.start(t); osc.stop(t + duration);
+}
+
+const RINGTONES = {
+  classic: {
+    callee: () => { for(let i=0;i<2;i++){beep(880,.15,.35,'square',i*.22);beep(660,.15,.35,'square',i*.22+.15);} },
+    caller: () => { beep(440,1.0,.25,'sine'); beep(440,1.0,.25,'sine',1.0); },
+    period: { caller:3000, callee:2800 }
+  },
+  modern: {
+    callee: () => { beep(523,.1,.3,'sine'); beep(659,.1,.3,'sine',.12); beep(784,.1,.3,'sine',.24); beep(1047,.2,.3,'sine',.36); },
+    caller: () => { beep(523,.08,.2,'sine'); beep(659,.08,.2,'sine',.1); beep(784,.5,.2,'sine',.2); },
+    period: { caller:2500, callee:2200 }
+  },
+  retro: {
+    callee: () => { for(let i=0;i<8;i++) beep(i%2===0?1200:900,.07,.28,'square',i*.09); },
+    caller: () => { for(let i=0;i<4;i++) beep(800,.12,.2,'square',i*.18); },
+    period: { caller:2000, callee:1800 }
+  },
+  soft: {
+    callee: () => { beep(392,.4,.2,'sine'); beep(440,.4,.2,'sine',.5); },
+    caller: () => { beep(330,.8,.18,'sine'); beep(330,.8,.18,'sine',1.0); },
+    period: { caller:3500, callee:3000 }
+  },
+  urgent: {
+    callee: () => { for(let i=0;i<6;i++) beep(1000,.06,.4,'sawtooth',i*.1); },
+    caller: () => { beep(600,.15,.3,'sawtooth'); beep(700,.15,.3,'sawtooth',.18); beep(600,.15,.3,'sawtooth',.36); },
+    period: { caller:1500, callee:1200 }
+  }
+};
+
+function changeRingtone(name) {
+  currentRingtone = name;
+  localStorage.setItem('msn_ringtone', name);
+  if (ringActive) { stopRing(); startRing(IS_CALLER); }
+}
+function previewRingtone() { getAudioCtx(); (RINGTONES[currentRingtone]||RINGTONES.classic).callee(); }
+function playConnected()   { beep(523,.12,.28,'sine'); beep(659,.12,.28,'sine',.13); beep(784,.20,.28,'sine',.26); }
+function playBusy()        { beep(480,.25,.28,'sine'); beep(480,.25,.28,'sine',.3);  beep(440,.35,.25,'sine',.6); }
+function playReject()      { beep(320,.18,.3,'sawtooth'); beep(280,.25,.3,'sawtooth',.22); }
+
+function startRing(isCaller) {
+  if (ringActive) return;
+  ringActive = true;
+  const rt = RINGTONES[currentRingtone] || RINGTONES.classic;
+  const fn = isCaller ? rt.caller : rt.callee;
+  fn();
+  const period = isCaller ? rt.period.caller : rt.period.callee;
+  ringInterval = setInterval(() => { if (ringActive) fn(); }, period);
+}
+function stopRing() { ringActive = false; clearInterval(ringInterval); ringInterval = null; }
+
+document.addEventListener('click',      () => getAudioCtx(), { once: true });
+document.addEventListener('touchstart', () => getAudioCtx(), { once: true });
+
+// ══════════════════════════════════════════════
+// ── УСТРОЙСТВА
+// ══════════════════════════════════════════════
+async function loadDevices() {
+  let devices;
+  try { devices = await navigator.mediaDevices.enumerateDevices(); }
+  catch(e) { return; }
+  fillSelect('sel-mic', devices.filter(d => d.kind === 'audioinput'),  'Микрофон');
+  fillSelect('sel-cam', devices.filter(d => d.kind === 'videoinput'),  'Камера');
+  const audioEl = document.getElementById('remote-audio');
+  const spks = devices.filter(d => d.kind === 'audiooutput');
+  if (!audioEl.setSinkId) {
+    const spkSel = document.getElementById('sel-spk');
+    spkSel.disabled = true;
+    spkSel.innerHTML = '<option>Не поддерживается браузером</option>';
+    document.getElementById('spk-hint').style.display = 'block';
+  } else {
+    fillSelect('sel-spk', spks, 'Динамик');
+  }
+}
+
+function fillSelect(id, devices, defaultLabel) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '';
+  if (devices.length === 0) {
+    sel.innerHTML = `<option>Устройства не найдены</option>`;
+    sel.disabled = true; return;
+  }
+  sel.disabled = false;
+  devices.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || `${defaultLabel} ${i + 1}`;
+    sel.appendChild(opt);
+  });
+}
+
+async function switchMic(deviceId) {
+  if (!localStream) return;
+  try {
+    const ns = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } }, video: false });
+    const newTrack = ns.getAudioTracks()[0];
+    localStream.getAudioTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+    localStream.addTrack(newTrack);
+    newTrack.enabled = !micMuted;
+    if (pc) {
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+      if (sender) await sender.replaceTrack(newTrack);
+    }
+  } catch(e) { alert('Не удалось переключить микрофон:\n' + e.message); }
+}
+
+async function switchSpk(deviceId) {
+  const audioEl = document.getElementById('remote-audio');
+  if (!audioEl.setSinkId) return;
+  try { await audioEl.setSinkId(deviceId); } catch(e) { alert('Не удалось переключить динамик:\n' + e.message); }
+}
+
+async function switchCam(deviceId) {
+  localStorage.setItem('msn_cam_device', deviceId);
+  if (!camOn) return;
+  try {
+    const ns = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false });
+    const newTrack = ns.getVideoTracks()[0];
+    localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+    localStream.addTrack(newTrack);
+    document.getElementById('local-video').srcObject = localStream;
+    if (pc) {
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) await sender.replaceTrack(newTrack);
+    }
+  } catch(e) { alert('Не удалось переключить камеру:\n' + e.message); }
+}
+
+async function toggleCamera() {
+  const btn = document.getElementById('btn-cam');
+  if (!camOn) {
+    try {
+      const saved = localStorage.getItem('msn_cam_device');
+      const vidConstraint = saved ? { deviceId: { exact: saved } } : true;
+      const camStream = await navigator.mediaDevices.getUserMedia({ video: vidConstraint, audio: false });
+      const videoTrack = camStream.getVideoTracks()[0];
+      if (!localStream) localStream = new MediaStream();
+      localStream.addTrack(videoTrack);
+      document.getElementById('local-video').srcObject = localStream;
+      document.getElementById('video-wrap').classList.add('show');
+      if (pc) {
+        const existingSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (existingSender) { await existingSender.replaceTrack(videoTrack); }
+        else { pc.addTrack(videoTrack, localStream); await renegotiate(); }
+      }
+      camOn = true; btn.classList.remove('off'); btn.textContent = '📹'; btn.title = 'Выключить камеру';
+      if (devicePanelOpen) loadDevices();
+    } catch(e) { alert('Не удалось включить камеру:\n' + e.message); }
+  } else {
+    if (localStream) localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+    if (pc) { const s = pc.getSenders().find(s => s.track && s.track.kind==='video'); if(s) s.replaceTrack(null); }
+    document.getElementById('local-video').srcObject = null;
+    const rv = document.getElementById('remote-video');
+    if (!(rv.srcObject && rv.srcObject.getVideoTracks().length > 0))
+      document.getElementById('video-wrap').classList.remove('show');
+    camOn = false; btn.classList.add('off'); btn.textContent = '📷'; btn.title = 'Включить камеру';
+  }
+}
+
+async function renegotiate() {
+  if (!pc) return;
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await sendSignal('offer', JSON.stringify(offer));
+  } catch(e) { log('Renegotiate error: ' + e); }
+}
+
+function toggleDevicePanel() {
+  devicePanelOpen = !devicePanelOpen;
+  const panel = document.getElementById('device-panel');
+  const arrow = document.getElementById('panel-arrow');
+  const gearBtn = document.getElementById('btn-gear');
+  if (devicePanelOpen) {
+    panel.classList.remove('hidden'); panel.classList.add('visible');
+    arrow.textContent = '▲'; gearBtn.classList.add('active'); loadDevices();
+  } else {
+    panel.classList.remove('visible'); panel.classList.add('hidden');
+    arrow.textContent = '▼'; gearBtn.classList.remove('active');
+  }
+}
+
+// ══════════════════════════════════════════════
+// ── WEBRTC / СИГНАЛИЗАЦИЯ
+// ══════════════════════════════════════════════
+async function sendSignal(type, payload) {
+  await fetch('/api/msn/call/signal', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ call_id: CALL_ID, type, payload, to_id: OTHER_ID })
+  });
+}
+
+// ── getUserMedia — только вызывать из user gesture! ─────────────
+// ✅ Работает и на iOS Safari, и на Android Chrome
+async function getLocalStream() {
+  const constraints = {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+    video: false
+  };
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    log('Got local stream: ' + localStream.getTracks().map(t=>t.kind+'/'+t.label).join(', '));
+  } catch(e) {
+    log('getUserMedia error: ' + e.name + ' ' + e.message);
+    // Fallback без constraints (помогает на некоторых Android)
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      log('Got local stream (fallback)');
+    } catch(e2) {
+      log('getUserMedia fallback error: ' + e2);
+      setStatus('❌ Нет доступа к микрофону: ' + e2.message, '');
+      localStream = null;
+    }
+  }
+  return localStream;
+}
+
+function attachRemoteAudio(track) {
+  const audioEl = document.getElementById('remote-audio');
+  if (!remoteAudioStream) remoteAudioStream = new MediaStream();
+  remoteAudioStream.addTrack(track);
+  audioEl.srcObject = remoteAudioStream;
+  audioEl.volume = 1.0;
+  const p = audioEl.play();
+  if (p !== undefined) {
+    p.catch(e => {
+      log('audio play failed: ' + e);
+      // iOS требует user gesture для play()
+      document.addEventListener('touchstart', () => audioEl.play().catch(()=>{}), { once: true });
+      document.addEventListener('click',      () => audioEl.play().catch(()=>{}), { once: true });
+    });
+  }
+  log('Remote audio attached');
+}
+
+function setupPC() {
+  pc = new RTCPeerConnection(ICE_SERVERS);
+  pc.onicecandidate = e => { if (e.candidate) sendSignal('ice', JSON.stringify(e.candidate)); };
+  pc.oniceconnectionstatechange = () => log('ICE: ' + pc.iceConnectionState);
+  pc.ontrack = e => {
+    log('Remote track: ' + e.track.kind);
+    if (e.track.kind === 'audio') {
+      attachRemoteAudio(e.track);
+    } else if (e.track.kind === 'video') {
+      const rv = document.getElementById('remote-video');
+      if (!rv.srcObject) rv.srcObject = new MediaStream();
+      rv.srcObject.addTrack(e.track);
+      document.getElementById('video-wrap').classList.add('show');
+    }
+  };
+  pc.onconnectionstatechange = () => {
+    log('Connection: ' + pc.connectionState);
+    const dot = document.getElementById('quality-dot');
+    const lbl = document.getElementById('quality-label');
+    const ind = document.getElementById('quality-ind');
+    if (pc.connectionState === 'connected') {
+      ind.style.display = 'flex'; dot.className = 'quality-dot'; lbl.textContent = 'хорошее';
+    } else if (['disconnected','failed'].includes(pc.connectionState)) {
+      dot.className = 'quality-dot bad'; lbl.textContent = 'обрыв'; hangUp();
+    }
+  };
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  return pc;
+}
+
+// ── ЗВОНЯЩИЙ: обработчик кнопки (user gesture) ─────────────────
+// ✅ Главное исправление: getUserMedia теперь вызывается ТОЛЬКО из
+// обработчика нажатия, а не автоматически при загрузке страницы.
+async function onCallerReady() {
+  const gate = document.getElementById('mic-gate');
+  gate.style.display = 'none';
+
+  // Инициализируем AudioContext из user gesture
+  getAudioCtx();
+  startRing(true);
+  setStatus('Вызов...', 'ringing');
+
+  await getLocalStream();
+  setupPC();
+
+  const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+  await pc.setLocalDescription(offer);
+  await sendSignal('offer', JSON.stringify(offer));
+
+  document.getElementById('call-controls').style.display = 'flex';
+  startPolling();
+}
+
+// ── ПРИНИМАЮЩИЙ: acceptCall — тоже из onclick, всё ок ──────────
+async function acceptCall() {
+  stopRing();
+  playConnected();
+  document.getElementById('incoming-btns').style.display = 'none';
+  document.getElementById('call-controls').style.display = 'flex';
+  document.getElementById('ringtone-selector').style.display = 'none';
+  setStatus('Подключение...', 'ringing');
+
+  // ✅ Вызов из onclick — user gesture есть, работает на мобиле
+  await getLocalStream();
+  setupPC();
+  startPolling();
+}
+
+async function rejectCall() {
+  stopRing(); playReject();
+  await sendSignal('reject', '');
+  window.location.href = '/messenger';
+}
+
+async function hangUp() {
+  stopRing(); playBusy();
+  clearInterval(callTimer); clearInterval(pollInterval);
+  await sendSignal('hangup', '');
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  const audioEl = document.getElementById('remote-audio');
+  audioEl.srcObject = null;
+  window.location.href = '/messenger';
+}
+
+function startTimer() {
+  callSeconds = 0;
+  callTimer = setInterval(() => {
+    callSeconds++;
+    const m = Math.floor(callSeconds / 60);
+    const s = callSeconds % 60;
+    document.getElementById('call-timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+  document.getElementById('call-timer').style.display = 'block';
+}
+
+function setStatus(text, cls='') {
+  const el = document.getElementById('call-status');
+  el.textContent = text;
+  el.className = 'call-status ' + cls;
+}
+
+function toggleMic() {
+  micMuted = !micMuted;
+  if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+  const btn = document.getElementById('btn-mic');
+  btn.classList.toggle('muted', micMuted);
+  btn.title = micMuted ? 'Включить микрофон' : 'Выключить микрофон';
+  btn.textContent = micMuted ? '🔇' : '🎤';
+}
+
+function toggleSpk() {
+  const audioEl = document.getElementById('remote-audio');
+  audioEl.muted = !audioEl.muted;
+  document.getElementById('btn-spk').textContent = audioEl.muted ? '🔈' : '🔊';
+}
+
+async function handleSignal(sig) {
+  log('Signal: ' + sig.type);
+  if (sig.type === 'offer') {
+    const offer = JSON.parse(sig.payload);
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await sendSignal('answer', JSON.stringify(answer));
+    setStatus('Соединение...', 'ringing');
+  } else if (sig.type === 'answer') {
+    stopRing(); playConnected();
+    const answer = JSON.parse(sig.payload);
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    setStatus('● В звонке', 'active');
+    document.getElementById('ringtone-selector').style.display = 'none';
+    startTimer();
+  } else if (sig.type === 'ice') {
+    try { await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(sig.payload))); }
+    catch(e) { log('ICE error: ' + e); }
+  } else if (sig.type === 'reject') {
+    stopRing(); playReject();
+    setStatus('Звонок отклонён', '');
+    clearInterval(pollInterval);
+    setTimeout(() => window.location.href = '/messenger', 2000);
+  } else if (sig.type === 'hangup') {
+    stopRing(); playBusy();
+    clearInterval(callTimer); clearInterval(pollInterval);
+    setStatus('Звонок завершён', '');
+    if (pc) { pc.close(); pc = null; }
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    document.getElementById('remote-audio').srcObject = null;
+    setTimeout(() => window.location.href = '/messenger', 2000);
+  }
+}
+
+function startPolling() {
+  pollInterval = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/msn/call/poll/${CALL_ID}?since=${lastSignalId}`);
+      const d = await r.json();
+      if (d.signals && d.signals.length > 0) {
+        lastSignalId = d.last_id;
+        for (const sig of d.signals) await handleSignal(sig);
+      }
+      if (d.call_status === 'hangup' || d.call_status === 'reject') {
+        clearInterval(pollInterval);
+        setStatus('Звонок завершён', '');
+        setTimeout(() => window.location.href = '/messenger', 2000);
+      }
+    } catch(e) { log('Poll error: ' + e); }
+  }, 1000);
+}
+
+// ── Инициализация ──────────────────────────────────────────────
+document.getElementById('ringtone-select').value = currentRingtone;
+
+if (IS_CALLER) {
+  // ✅ ИСПРАВЛЕНО: НЕ вызываем startCall() автоматически.
+  // Показываем кнопку "Начать звонок" — пользователь нажимает сам.
+  // Это даёт user gesture для getUserMedia на iOS/Android.
+  document.getElementById('mic-gate').style.display = 'flex';
+  // Но ringtone покажем сразу — звук тут не требует gesture (пока не воспроизводим)
+  setStatus('Нажми кнопку чтобы начать', 'ringing');
+} else {
+  // Принимающий: показываем входящий звонок, ждёт кнопку accept
+  // startRing вызываем по первому тапу (чтобы iOS не заблокировал)
+  document.addEventListener('touchstart', () => { getAudioCtx(); startRing(false); }, { once: true });
+  document.addEventListener('click',      () => { getAudioCtx(); startRing(false); }, { once: true });
+  // Fallback: если на десктопе — сразу
+  setTimeout(() => { if (!ringActive) startRing(false); }, 200);
+  startPolling();
+}
+
+// Автоотбой через 60 сек без ответа
+setTimeout(() => {
+  const st = document.getElementById('call-status').textContent;
+  if (st.includes('Вызов') || st.includes('ожидание') || st.includes('Нажми')) {
+    stopRing();
+    setStatus('Нет ответа', '');
+    setTimeout(() => hangUp(), 2000);
+  }
+}, 60000);
+</script>
+</body>
+</html>

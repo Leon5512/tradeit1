@@ -1,0 +1,221 @@
+{#
+  ──────────────────────────────────────────────────────────────
+  МОБИЛЬНЫЙ ПАТЧ — вставь содержимое <head> и <style> в свой
+  базовый шаблон (обычно base.html или layout.html).
+
+  Если у тебя нет base.html, добавь эти теги в каждый шаблон.
+  ──────────────────────────────────────────────────────────────
+#}
+
+{# 1. В <head> — ОБЯЗАТЕЛЬНО первым делом: #}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#00aeef">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+{# 2. CSS для мобильного режима — добавь в <style> или свой .css файл: #}
+<style>
+/* ── Глобальный сброс для мобил ─────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+img, video, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Таблицы — горизонтальный скролл на мобиле ─ */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Навигация — адаптив ────────────────────── */
+@media (max-width: 768px) {
+  /* Бургер-меню: скрой обычный nav, покажи кнопку */
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100vh;
+    background: rgba(0,0,0,0.92);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+  }
+  .nav-links.open { display: flex; }
+
+  .nav-burger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    padding: 8px;
+    background: none;
+    border: none;
+    z-index: 10000;
+  }
+  .nav-burger span {
+    display: block;
+    width: 26px; height: 3px;
+    background: currentColor;
+    border-radius: 2px;
+    transition: transform .25s, opacity .25s;
+  }
+  .nav-burger.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+  .nav-burger.open span:nth-child(2) { opacity: 0; }
+  .nav-burger.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+  /* Карточки объявлений — 1 колонка */
+  .ads-grid {
+    grid-template-columns: 1fr !important;
+    padding: 0 12px;
+  }
+
+  /* Контейнер — убрать боковые отступы */
+  .container, .content, main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    max-width: 100% !important;
+  }
+
+  /* Формы */
+  input, textarea, select, button {
+    width: 100%;
+    font-size: 16px; /* Предотвращает зум на iOS при фокусе */
+    padding: 10px 12px;
+  }
+
+  /* Чат мессенджера */
+  .msn-layout {
+    flex-direction: column !important;
+  }
+  .msn-sidebar {
+    width: 100% !important;
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+  .msn-chat-area {
+    width: 100% !important;
+    height: 55vh;
+  }
+
+  /* Страница звонка */
+  .call-videos {
+    flex-direction: column !important;
+  }
+  .call-videos video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 40vh;
+  }
+
+  /* Фиксированная нижняя панель навигации (опционально) */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: var(--bg-secondary, #1a1a2e);
+    border-top: 1px solid rgba(255,255,255,.1);
+    z-index: 1000;
+    align-items: stretch;
+  }
+  .mobile-bottom-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 10px;
+    color: inherit;
+    text-decoration: none;
+    opacity: .7;
+    transition: opacity .15s;
+  }
+  .mobile-bottom-nav a.active,
+  .mobile-bottom-nav a:hover { opacity: 1; }
+  .mobile-bottom-nav svg { width: 22px; height: 22px; }
+
+  /* Отступ снизу чтобы контент не перекрывался навигацией */
+  body { padding-bottom: 56px; }
+}
+
+@media (min-width: 769px) {
+  .nav-burger { display: none; }
+  .mobile-bottom-nav { display: none; }
+}
+</style>
+
+{# 3. JavaScript для бургер-меню — перед </body>: #}
+<script>
+(function () {
+  const burger = document.querySelector('.nav-burger');
+  const nav    = document.querySelector('.nav-links');
+  if (!burger || !nav) return;
+
+  burger.addEventListener('click', function () {
+    const open = nav.classList.toggle('open');
+    burger.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  });
+
+  // Закрыть меню при нажатии на ссылку
+  nav.querySelectorAll('a').forEach(a =>
+    a.addEventListener('click', () => {
+      nav.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', false);
+      document.body.style.overflow = '';
+    })
+  );
+})();
+</script>
+
+{#
+  ──────────────────────────────────────────────────────────────
+  ПРИМЕР нижней навигации — добавь перед </body>:
+  ──────────────────────────────────────────────────────────────
+
+  <nav class="mobile-bottom-nav">
+    <a href="/" {% if request.path == '/' %}class="active"{% endif %}>
+      <svg ...><!-- иконка дом --></svg>
+      Главная
+    </a>
+    <a href="/favorites" {% if '/favorites' in request.path %}class="active"{% endif %}>
+      <svg ...><!-- иконка сердце --></svg>
+      Избранное
+    </a>
+    <a href="/messages" {% if '/messages' in request.path %}class="active"{% endif %}>
+      <svg ...><!-- иконка чат --></svg>
+      Чаты
+    </a>
+    <a href="/messenger" {% if '/messenger' in request.path %}class="active"{% endif %}>
+      <svg ...><!-- иконка мессенджер --></svg>
+      MSN
+    </a>
+    {% if session.user_id %}
+    <a href="/settings" {% if '/settings' in request.path %}class="active"{% endif %}>
+      <svg ...><!-- иконка профиль --></svg>
+      Профиль
+    </a>
+    {% endif %}
+  </nav>
+#}

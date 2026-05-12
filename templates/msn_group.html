@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ group.name }} · TradeIt MSN</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--primary:#6c47ff;--primary2:#00aeef;--accent:#ff6a00;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--success:#22c55e;--error:#ef4444;--radius:14px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+  .chat-header{background:var(--card);border-bottom:2px solid var(--primary);padding:0 20px;height:60px;display:flex;align-items:center;gap:14px;flex-shrink:0;}
+  .chat-back{color:var(--muted);text-decoration:none;font-size:20px;transition:.15s;padding:4px;}
+  .chat-back:hover{color:var(--text);}
+  .grp-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff6a00,#6c47ff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;overflow:hidden;}
+  .grp-av img{width:100%;height:100%;object-fit:cover;}
+  .chat-info{flex:1;}
+  .chat-info-name{font-weight:800;font-size:16px;}
+  .chat-info-count{font-size:12px;color:var(--muted);}
+  .header-btn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;}
+  .header-btn:hover{color:var(--text);border-color:var(--primary);}
+
+  .chat-wrap{display:flex;flex:1;overflow:hidden;}
+
+  .chat-msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;}
+  .chat-msgs::-webkit-scrollbar{width:4px;}
+  .chat-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+  .msg-wrap{display:flex;flex-direction:column;max-width:65%;}
+  .msg-wrap.mine{align-self:flex-end;align-items:flex-end;}
+  .msg-wrap.theirs{align-self:flex-start;align-items:flex-start;}
+
+  .msg-sender{font-size:11px;font-weight:700;color:var(--primary2);margin-bottom:3px;padding:0 4px;}
+  .msg-bubble{padding:11px 16px;border-radius:18px;font-size:14px;line-height:1.5;word-break:break-word;}
+  .mine .msg-bubble{background:linear-gradient(135deg,var(--primary),#9a7aff);color:white;border-bottom-right-radius:4px;}
+  .theirs .msg-bubble{background:var(--card);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px;}
+  .msg-time{font-size:11px;color:var(--muted);margin-top:3px;padding:0 4px;}
+
+  .date-sep{display:flex;align-items:center;gap:10px;margin:8px 0;}
+  .date-sep span{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;}
+  .date-sep::before,.date-sep::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* Members sidebar */
+  .members-panel{width:220px;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;transition:.3s;}
+  .members-panel.hidden{width:0;overflow:hidden;}
+  .members-title{padding:14px 16px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .member-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);}
+  .member-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;overflow:hidden;}
+  .member-av img{width:100%;height:100%;object-fit:cover;}
+  .member-name{font-size:13px;font-weight:700;}
+  .member-num{font-size:11px;color:var(--muted);}
+
+  /* Invite */
+  .invite-form{padding:12px 16px;border-top:1px solid var(--border);margin-top:auto;}
+  .invite-form input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;margin-bottom:8px;}
+  .invite-form input:focus{border-color:var(--primary);}
+  .invite-form button{width:100%;background:var(--primary);border:none;border-radius:10px;padding:8px;color:white;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+  .invite-msg{font-size:12px;margin-top:6px;font-weight:700;}
+  .invite-msg.ok{color:var(--success);}
+  .invite-msg.err{color:var(--error);}
+
+  /* Input */
+  .chat-input-area{background:var(--card);border-top:2px solid var(--border);padding:12px 16px;display:flex;align-items:flex-end;gap:10px;flex-shrink:0;}
+  .chat-input-wrap{flex:1;background:var(--card2);border:1.5px solid var(--border);border-radius:22px;display:flex;align-items:flex-end;padding:4px 6px 4px 16px;transition:.15s;}
+  .chat-input-wrap:focus-within{border-color:var(--primary);}
+  #msg-input{flex:1;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:14px;outline:none;resize:none;max-height:120px;overflow-y:auto;padding:7px 0;line-height:1.4;}
+  #msg-input::placeholder{color:var(--muted);}
+  .send-btn{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff6a00,var(--primary));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:.15s;}
+  .send-btn:hover{opacity:.85;transform:scale(1.05);}
+</style>
+</head>
+<body>
+
+<div class="chat-header">
+  <a href="/messenger" class="chat-back">←</a>
+  <div class="grp-av">
+    {% if group.avatar %}<img src="/static/uploads/{{ group.avatar }}">{% else %}{{ group.name[0].upper() }}{% endif %}
+  </div>
+  <div class="chat-info">
+    <div class="chat-info-name">{{ group.name }}</div>
+    <div class="chat-info-count">{{ members|length }} участник(ов)</div>
+  </div>
+  <button class="header-btn" onclick="toggleMembers()">👥 Участники</button>
+</div>
+
+<div class="chat-wrap">
+  <div class="chat-msgs" id="msgs-container">
+    <!-- Rendered by JS -->
+  </div>
+
+  <div class="members-panel hidden" id="members-panel">
+    <div class="members-title">
+      <span>Участники</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;">
+      {% for m in members %}
+      <div class="member-item">
+        <div class="member-av">
+          {% if m.avatar %}<img src="/static/uploads/{{ m.avatar }}">{% else %}{{ m.msn_username[0].upper() }}{% endif %}
+        </div>
+        <div>
+          <div class="member-name">{{ m.msn_username }}</div>
+          <div class="member-num">{{ m.msn_number }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if group.created_by == me.id %}
+    <div class="invite-form">
+      <input type="text" id="invite-num" placeholder="Номер #12345">
+      <button onclick="inviteMember()">➕ Пригласить</button>
+      <div class="invite-msg" id="invite-msg"></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="chat-input-area">
+  <div class="chat-input-wrap">
+    <textarea id="msg-input" placeholder="Сообщение в группу..." rows="1" maxlength="2000"></textarea>
+  </div>
+  <button class="send-btn" onclick="sendMsg()">➤</button>
+</div>
+
+<script>
+const ME_ID = {{ me.id }};
+const GROUP_ID = {{ group.id }};
+const ME_NAME = {{ me.msn_username | tojson }};
+let initialMsgs = {{ msgs | tojson if msgs else '[]' }};
+let lastMsgId = 0;
+
+function formatTime(ts) {
+  return new Date(ts*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+function formatDate(ts) {
+  const d = new Date(ts*1000), today = new Date(), yest = new Date(today);
+  yest.setDate(today.getDate()-1);
+  if (d.toDateString()===today.toDateString()) return 'Сегодня';
+  if (d.toDateString()===yest.toDateString()) return 'Вчера';
+  return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+
+function renderAll(msgs) {
+  const c = document.getElementById('msgs-container');
+  if (!msgs.length) { c.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;">Нет сообщений. Напиши первым!</div>'; return; }
+  let html = '', lastDate = null;
+  msgs.forEach(m => {
+    const mine = m.sender_id === ME_ID;
+    const d = formatDate(m.created_at);
+    if (d !== lastDate) { html += `<div class="date-sep"><span>${d}</span></div>`; lastDate = d; }
+    html += `<div class="msg-wrap ${mine?'mine':'theirs'}" data-id="${m.id}">
+      ${!mine ? `<div class="msg-sender">${escHtml(m.msn_username||'')}</div>` : ''}
+      <div class="msg-bubble">${escHtml(m.text)}</div>
+      <div class="msg-time">${formatTime(m.created_at)}</div>
+    </div>`;
+    if (m.id > lastMsgId) lastMsgId = m.id;
+  });
+  c.innerHTML = html;
+  c.scrollTop = c.scrollHeight;
+}
+
+function appendMsg(m) {
+  const c = document.getElementById('msgs-container');
+  const mine = m.sender_id === ME_ID;
+  const div = document.createElement('div');
+  div.className = `msg-wrap ${mine?'mine':'theirs'}`;
+  div.dataset.id = m.id;
+  div.innerHTML = `${!mine ? `<div class="msg-sender">${escHtml(m.msn_username||'')}</div>` : ''}
+    <div class="msg-bubble">${escHtml(m.text)}</div>
+    <div class="msg-time">${formatTime(m.created_at)}</div>`;
+  // Remove empty state if present
+  const empty = c.querySelector('div[style*="align-items:center"]');
+  if (empty) empty.remove();
+  c.appendChild(div);
+  if (m.id > lastMsgId) lastMsgId = m.id;
+  c.scrollTop = c.scrollHeight;
+}
+
+async function sendMsg() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height='auto';
+  appendMsg({id: Date.now(), sender_id: ME_ID, text, created_at: Math.floor(Date.now()/1000), msn_username: ME_NAME});
+  try {
+    await fetch(`/api/msn/group/send/${GROUP_ID}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  } catch(e){}
+}
+
+async function pollMsgs() {
+  try {
+    const r = await fetch(`/api/msn/group/msgs/${GROUP_ID}`);
+    const d = await r.json();
+    if (d.msgs) {
+      d.msgs.filter(m=>m.id>lastMsgId && m.sender_id!==ME_ID).forEach(appendMsg);
+    }
+  } catch(e){}
+}
+
+async function inviteMember() {
+  const num = document.getElementById('invite-num').value.trim();
+  const msgEl = document.getElementById('invite-msg');
+  if (!num) return;
+  const r = await fetch(`/api/msn/group/invite/${GROUP_ID}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number:num})});
+  const d = await r.json();
+  msgEl.textContent = d.ok ? '✓ Приглашён!' : (d.msg||'Ошибка');
+  msgEl.className = 'invite-msg ' + (d.ok ? 'ok' : 'err');
+  if (d.ok) { document.getElementById('invite-num').value=''; setTimeout(()=>location.reload(),1000); }
+}
+
+function toggleMembers() {
+  document.getElementById('members-panel').classList.toggle('hidden');
+}
+
+renderAll(initialMsgs);
+
+const input = document.getElementById('msg-input');
+input.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+input.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+
+setInterval(pollMsgs, 2500);
+</script>
+</body>
+</html>

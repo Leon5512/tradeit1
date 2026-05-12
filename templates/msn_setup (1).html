@@ -1,0 +1,39 @@
+<!-- msn_setup.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Создать аккаунт мессенджера</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--primary:#6c47ff;--primary2:#00aeef;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--error:#ef4444;--radius:14px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .card{background:var(--card);border-radius:20px;padding:40px;width:420px;box-shadow:0 8px 40px rgba(108,71,255,.2);}
+  h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,#6c47ff,#00aeef);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;}
+  p{color:var(--muted);font-size:14px;margin-bottom:28px;}
+  label{display:block;font-weight:700;font-size:13px;color:var(--muted);margin-bottom:6px;}
+  input{width:100%;background:#0f0f1a;border:2px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;font-size:15px;outline:none;margin-bottom:20px;transition:.15s;}
+  input:focus{border-color:var(--primary);}
+  button{width:100%;background:linear-gradient(135deg,#6c47ff,#00aeef);border:none;border-radius:var(--radius);padding:13px;color:white;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;}
+  .flash{background:#ef4444;color:white;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:700;margin-bottom:16px;}
+  .back{display:block;text-align:center;margin-top:16px;color:var(--muted);font-size:13px;text-decoration:none;}
+  .back:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="card">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <h1>🚀 Мессенджер</h1>
+  <p>Создай отдельный аккаунт мессенджера. Имя и номер будут отличаться от основного аккаунта TradeIt.</p>
+  <form method="post">
+    <label>Имя в мессенджере</label>
+    <input type="text" name="msn_username" placeholder="Минимум 3 символа" minlength="3" required autofocus>
+    <button type="submit">Создать аккаунт →</button>
+  </form>
+  <a href="/" class="back">← Вернуться на сайт</a>
+</div>
+</body>
+</html>

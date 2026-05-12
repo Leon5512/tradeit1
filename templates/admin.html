@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Админ панель{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header" style="margin-top:20px;">
+    <h1>🛡️ Админ панель</h1>
+  </div>
+
+  <!-- Статистика -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+    {% for label,val,icon in [('Пользователи',stats.users,'👤'),('Объявления',stats.ads,'📢'),('Сообщения',stats.messages,'💬'),('Заблокированы',stats.banned,'🚫')] %}
+    <div class="card" style="text-align:center;padding:20px;">
+      <div style="font-size:32px;">{{ icon }}</div>
+      <div style="font-size:28px;font-weight:800;color:var(--primary);">{{ val }}</div>
+      <div style="font-size:13px;color:var(--muted);">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Объявление для всех -->
+  <div class="card" style="margin-bottom:24px;">
+    <h3 style="font-weight:800;margin-bottom:12px;">📢 Объявление для всех пользователей</h3>
+    <form method="post" action="/admin/announce" style="display:flex;gap:10px;">
+      <input type="text" name="text" placeholder="Текст объявления (отобразится вверху сайта)..." style="flex:1;">
+      <button type="submit" class="btn btn-accent">Опубликовать</button>
+    </form>
+  </div>
+
+  <!-- Навигация по секциям -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+    {% for name,anchor in [('👤 Пользователи','users'),('📢 Объявления','ads'),('💬 Поддержка','support'),('🛡️ DDoS','ddos')] %}
+    <a href="#{{ anchor }}" class="btn btn-ghost btn-sm">{{ name }}</a>
+    {% endfor %}
+  </div>
+
+  <!-- Пользователи -->
+  <div class="card" style="margin-bottom:24px;padding:0;overflow:hidden;" id="users">
+    <div style="padding:16px 20px;border-bottom:2px solid var(--border);font-weight:800;font-size:16px;">👤 Пользователи</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr style="background:var(--bg);">
+        <th style="padding:10px 16px;text-align:left;">ID</th>
+        <th style="padding:10px 16px;text-align:left;">Логин</th>
+        <th style="padding:10px 16px;text-align:left;">Email</th>
+        <th style="padding:10px 16px;text-align:left;">Статус</th>
+        <th style="padding:10px 16px;text-align:left;">Действия</th>
+      </tr>
+      {% for u in users %}
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:10px 16px;color:var(--muted);">{{ u.id }}</td>
+        <td style="padding:10px 16px;font-weight:700;">
+          <a href="/user/{{ u.username }}" style="color:var(--text);text-decoration:none;">{{ u.username }}</a>
+          {% if u.is_admin %}<span style="font-size:11px;background:var(--primary);color:white;padding:2px 7px;border-radius:20px;margin-left:6px;">ADMIN</span>{% endif %}
+        </td>
+        <td style="padding:10px 16px;color:var(--muted);">{{ u.email }}</td>
+        <td style="padding:10px 16px;">
+          {% if u.is_banned %}<span style="color:var(--error);font-weight:700;">🚫 Заблокирован</span>
+          {% else %}<span style="color:var(--success);font-weight:700;">✅ Активен</span>{% endif %}
+        </td>
+        <td style="padding:10px 16px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            {% if u.id != session.user_id %}
+              {% if u.is_banned %}
+                <a href="/admin/unban/{{ u.id }}" class="btn btn-sm" style="background:var(--success);color:white;">Разбанить</a>
+              {% else %}
+                <a href="/admin/ban/{{ u.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Забанить?')">Забанить</a>
+              {% endif %}
+              {% if not u.is_admin %}
+                <a href="/admin/make_admin/{{ u.id }}" class="btn btn-sm btn-ghost" onclick="return confirm('Сделать админом?')">Админ</a>
+              {% endif %}
+            {% else %}<span style="color:var(--muted);font-size:13px;">Это вы</span>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+
+  <!-- Техподдержка -->
+  <div class="card" style="margin-bottom:24px;padding:0;overflow:hidden;" id="support">
+    <div style="padding:16px 20px;border-bottom:2px solid var(--border);font-weight:800;font-size:16px;">💬 Обращения в поддержку</div>
+    {% set ns = namespace(current_user=None) %}
+    {% for t in tickets %}
+      {% if ns.current_user != t.user_id %}
+        {% if ns.current_user is not none %}
+          <!-- Reply form -->
+          <form method="post" action="/admin/reply_support/{{ ns.current_user }}" style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);display:flex;gap:8px;">
+            <input type="text" name="text" placeholder="Ручной ответ пользователю..." style="flex:1;font-size:13px;">
+            <button type="submit" class="btn btn-primary btn-sm">Отправить</button>
+          </form>
+          </div>
+        {% endif %}
+        <div style="margin:12px 16px 0;padding:8px 12px;background:var(--bg);border-radius:8px;font-size:13px;font-weight:700;color:var(--muted);">
+          👤 {{ t.username }}
+        </div>
+        {% set ns.current_user = t.user_id %}
+      {% endif %}
+      <div style="padding:6px 16px;display:flex;justify-content:{% if t.is_admin %}flex-start{% else %}flex-end{% endif %};">
+        <div style="max-width:70%;background:{% if t.is_admin %}var(--card){% else %}var(--primary){% endif %};color:{% if t.is_admin %}var(--text){% else %}white{% endif %};padding:8px 12px;border-radius:12px;font-size:13px;border:{% if t.is_admin %}2px solid var(--border){% else %}none{% endif %};">
+          {{ t.message }}
+        </div>
+      </div>
+    {% else %}
+      <div style="padding:40px;text-align:center;color:var(--muted);">Нет обращений</div>
+    {% endfor %}
+    {% if ns.current_user is not none %}
+      <form method="post" action="/admin/reply_support/{{ ns.current_user }}" style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);display:flex;gap:8px;">
+        <input type="text" name="text" placeholder="Ручной ответ пользователю..." style="flex:1;font-size:13px;">
+        <button type="submit" class="btn btn-primary btn-sm">Отправить</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- DDoS -->
+  <div class="card" style="margin-bottom:24px;padding:0;overflow:hidden;" id="ddos">
+    <div style="padding:16px 20px;border-bottom:2px solid var(--border);font-weight:800;font-size:16px;">🛡️ DDoS — Топ IP</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr style="background:var(--bg);">
+        <th style="padding:10px 16px;text-align:left;">IP</th>
+        <th style="padding:10px 16px;text-align:left;">Эндпоинт</th>
+        <th style="padding:10px 16px;text-align:left;">Хитов</th>
+      </tr>
+      {% for r in rl %}
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:10px 16px;font-family:monospace;">{{ r.ip }}</td>
+        <td style="padding:10px 16px;">{{ r.endpoint }}</td>
+        <td style="padding:10px 16px;font-weight:800;color:{% if r.hits > 40 %}var(--error){% else %}var(--text){% endif %};">{{ r.hits }}</td>
+      </tr>
+      {% else %}<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--muted);">Нет данных</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+
+  <!-- Объявления -->
+  <div class="card" style="padding:0;overflow:hidden;" id="ads">
+    <div style="padding:16px 20px;border-bottom:2px solid var(--border);font-weight:800;font-size:16px;">📢 Последние объявления</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr style="background:var(--bg);">
+        <th style="padding:10px 16px;text-align:left;">ID</th>
+        <th style="padding:10px 16px;text-align:left;">Заголовок</th>
+        <th style="padding:10px 16px;text-align:left;">Автор</th>
+        <th style="padding:10px 16px;text-align:left;">Цена</th>
+        <th style="padding:10px 16px;text-align:left;">Действия</th>
+      </tr>
+      {% for ad in ads %}
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:10px 16px;color:var(--muted);">{{ ad.id }}</td>
+        <td style="padding:10px 16px;"><a href="/ad/{{ ad.id }}" style="color:var(--text);text-decoration:none;font-weight:600;">{{ ad.title[:40] }}</a></td>
+        <td style="padding:10px 16px;">{{ ad.username }}</td>
+        <td style="padding:10px 16px;font-weight:700;color:var(--accent);">{{ "{:,.0f}".format(ad.price) }} ₽</td>
+        <td style="padding:10px 16px;display:flex;gap:6px;">
+          <a href="/ad/{{ ad.id }}/edit" class="btn btn-ghost btn-sm">✏️</a>
+          <a href="/admin/delete_ad/{{ ad.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Удалить?')">🗑</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

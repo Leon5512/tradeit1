@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ ad.title }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;">
+  <div style="display:grid; grid-template-columns:1fr 340px; gap:20px; margin-top:20px;">
+
+    <!-- Левая колонка -->
+    <div>
+      {% if ad.image %}
+        <img src="/static/uploads/{{ ad.image }}" style="width:100%; border-radius:var(--radius); max-height:420px; object-fit:cover; margin-bottom:16px;" alt="{{ ad.title }}">
+      {% else %}
+        <div style="width:100%; height:300px; background:linear-gradient(135deg,#e2e8f0,#cbd5e1); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; font-size:80px; margin-bottom:16px;">🏷️</div>
+      {% endif %}
+      <div class="card">
+        <h1 style="font-size:22px; font-weight:800; margin-bottom:8px;">{{ ad.title }}</h1>
+        <div style="font-size:28px; font-weight:800; color:var(--accent); margin-bottom:16px;">
+          {{ "{:,.0f}".format(ad.price) }} ₽
+        </div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:16px; display:flex; gap:16px;">
+          <span>📍 {{ ad.city }}</span>
+          <span>🏷️ {{ ad.category }}</span>
+        </div>
+        {% if ad.description %}
+        <hr style="border:none; border-top:2px solid var(--border); margin-bottom:16px;">
+        <h3 style="font-size:15px; font-weight:700; margin-bottom:8px;">Описание</h3>
+        <p style="font-size:14px; line-height:1.6; color:var(--text);">{{ ad.description }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Блок отзывов о продавце -->
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:15px; font-weight:800;">⭐ Отзывы о продавце</h3>
+          <span id="avg-rating" style="font-size:13px; color:var(--muted);"></span>
+        </div>
+        <div id="reviews-list" style="display:flex; flex-direction:column; gap:10px;">
+          <div style="color:var(--muted); font-size:13px;">Загрузка...</div>
+        </div>
+
+        {% if session.user_id and session.user_id != ad.owner_id %}
+        <hr style="border:none; border-top:1px solid var(--border); margin:16px 0 12px;">
+        <h4 style="font-size:13px; font-weight:700; margin-bottom:8px;">Оставить отзыв</h4>
+        <div style="display:flex; gap:6px; margin-bottom:8px;" id="star-row">
+          {% for i in range(1,6) %}
+          <span class="star" data-v="{{ i }}" style="font-size:24px; cursor:pointer; opacity:0.35; user-select:none; transition:opacity 0.1s;">★</span>
+          {% endfor %}
+        </div>
+        <textarea id="review-text" placeholder="Ваш комментарий (необязательно)..." style="width:100%; min-height:70px; resize:vertical; font-size:13px; margin-bottom:8px;"></textarea>
+        <button onclick="submitReview({{ ad.owner_id }})" class="btn btn-primary btn-sm">Отправить отзыв</button>
+        <span id="review-msg" style="font-size:12px; margin-left:8px; color:var(--success);"></span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Правая колонка -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="card">
+        <h3 style="font-size:14px; color:var(--muted); margin-bottom:8px;">Продавец</h3>
+        <a href="/user/{{ ad.username }}" style="font-size:17px; font-weight:800; color:var(--text); text-decoration:none;">
+          👤 {{ ad.username }}
+        </a>
+
+        {% if session.user_id and session.user_id != ad.owner_id %}
+          {% if purchase %}
+            <div style="margin-top:12px; padding:10px 12px; background:#f0fdf4; border-radius:8px; font-size:13px; color:#16a34a; font-weight:700; border:1px solid #bbf7d0;">
+              ✅ Вы купили этот товар
+            </div>
+            <a href="/messages/{{ ad.seller_id }}" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px; padding:12px;">
+              💬 Открыть переписку
+            </a>
+          {% else %}
+            <div id="buy-block" style="margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+              <button id="btn-buy" onclick="buyAd({{ ad.id }}, {{ ad.owner_id }})"
+                class="btn btn-primary"
+                style="width:100%; justify-content:center; padding:12px; font-size:15px;">
+                🛒 Купить
+              </button>
+              <button id="btn-decline" onclick="declineAd()"
+                class="btn btn-ghost"
+                style="width:100%; justify-content:center; padding:10px; font-size:13px; color:var(--muted);">
+                ✕ Отказ
+              </button>
+            </div>
+            <a href="/messages/{{ ad.owner_id }}" class="btn" style="width:100%; justify-content:center; margin-top:6px; padding:10px; font-size:13px; border:1px solid var(--border);">
+              💬 Написать продавцу
+            </a>
+          {% endif %}
+        {% endif %}
+
+        {% if session.user_id == ad.owner_id %}
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+            <a href="/ad/{{ ad.id }}/edit" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px;">
+              ✏️ Редактировать
+            </a>
+            <a href="/ad/{{ ad.id }}/delete" class="btn btn-danger btn-sm" style="width:100%; justify-content:center;"
+               onclick="return confirm('Удалить объявление?')">🗑 Удалить</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card" style="font-size:13px; color:var(--muted);">
+        <div style="display:flex; justify-content:space-between; padding:6px 0;">
+          <span>Категория</span><strong style="color:var(--text);">{{ ad.category }}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid var(--border);">
+          <span>Город</span><strong style="color:var(--text);">{{ ad.city }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedRating = 0;
+document.querySelectorAll('.star').forEach(s => {
+  s.addEventListener('mouseenter', () => {
+    document.querySelectorAll('.star').forEach((x,i) => x.style.opacity = i < s.dataset.v ? '1' : '0.35');
+  });
+  s.addEventListener('mouseleave', () => {
+    document.querySelectorAll('.star').forEach((x,i) => x.style.opacity = i < selectedRating ? '1' : '0.35');
+  });
+  s.addEventListener('click', () => {
+    selectedRating = parseInt(s.dataset.v);
+    document.querySelectorAll('.star').forEach((x,i) => x.style.opacity = i < selectedRating ? '1' : '0.35');
+  });
+});
+
+function submitReview(toUserId) {
+  if (!selectedRating) { alert('Выбери рейтинг'); return; }
+  fetch('/review/' + toUserId, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({rating: selectedRating, text: document.getElementById('review-text').value})
+  }).then(r=>r.json()).then(d=>{
+    if (d.ok) {
+      document.getElementById('review-msg').textContent = '✅ Отзыв сохранён';
+      loadReviews(toUserId);
+    } else {
+      document.getElementById('review-msg').textContent = d.msg || 'Ошибка';
+    }
+  });
+}
+
+function loadReviews(userId) {
+  fetch('/api/reviews/' + userId).then(r=>r.json()).then(d=>{
+    const list = document.getElementById('reviews-list');
+    const avg = document.getElementById('avg-rating');
+    if (d.avg) avg.textContent = '⭐ ' + d.avg + ' / 5';
+    if (!d.reviews.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;">Отзывов пока нет</div>'; return; }
+    list.innerHTML = d.reviews.map(r => `
+      <div style="padding:10px;background:var(--bg);border-radius:8px;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <a href="/user/${r.from_username}" style="font-weight:700;color:var(--text);text-decoration:none;">${r.from_username}</a>
+          <span style="color:#f59e0b;">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+        </div>
+        ${r.text ? `<div style="color:var(--text);line-height:1.5;margin-top:2px;">${r.text}</div>` : ''}
+      </div>
+    `).join('');
+  });
+}
+
+loadReviews({{ ad.owner_id }});
+
+function buyAd(adId, sellerId) {
+  if (!confirm('Подтвердить покупку?')) return;
+  fetch('/ad/' + adId + '/buy', {method:'POST'}).then(r=>r.json()).then(d=>{
+    if (d.ok) {
+      document.getElementById('buy-block').innerHTML =
+        `<div style="padding:10px 12px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#16a34a;font-weight:700;border:1px solid #bbf7d0;">✅ Куплено!</div>
+         <a href="/messages/${sellerId}" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:8px;">💬 Написать продавцу</a>`;
+    } else { alert(d.msg || 'Ошибка'); }
+  });
+}
+
+function declineAd() { window.history.back(); }
+</script>
+{% endblock %}

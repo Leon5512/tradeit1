@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Новое объявление{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px;">
+  <div class="card" style="margin-top:20px;">
+    <div class="page-header">
+      <h1>Подать объявление</h1>
+      <p>Заполни информацию о товаре</p>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Заголовок *</label>
+        <input type="text" name="title" required placeholder="Например: iPhone 13 Pro, 256GB">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label>Цена (₽) *</label>
+          <input type="number" name="price" required placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Город *</label>
+          <input type="text" name="city" required placeholder="Москва">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Категория *</label>
+        <select name="category" required>
+          <option value="">— Выбери категорию —</option>
+          <option>Электроника</option>
+          <option>Авто</option>
+          <option>Недвижимость</option>
+          <option>Одежда и обувь</option>
+          <option>Мебель и интерьер</option>
+          <option>Детские товары</option>
+          <option>Спорт и отдых</option>
+          <option>Животные</option>
+          <option>Работа</option>
+          <option>Услуги</option>
+          <option>Другое</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Описание</label>
+        <textarea name="description" placeholder="Расскажи подробнее о товаре..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Фото товара</label>
+        <input type="file" name="image" accept="image/*" style="background:white; cursor:pointer;">
+      </div>
+      <button type="submit" class="btn btn-accent" style="width:100%; justify-content:center; padding:12px; font-size:16px;">
+        📢 Опубликовать объявление
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

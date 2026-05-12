@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Подтверди email{% endblock %}
+{% block content %}
+<div class="container" style="max-width:480px;margin-top:60px;">
+  <div class="card" style="text-align:center;padding:48px 32px;">
+    <div style="font-size:64px;margin-bottom:20px;">📧</div>
+    <h1 style="font-size:22px;font-weight:800;margin-bottom:12px;">Проверь почту</h1>
+    <p style="color:var(--muted);font-size:15px;line-height:1.6;margin-bottom:28px;">
+      Мы отправили письмо на <strong>{{ email }}</strong>.<br>
+      Перейди по ссылке в письме чтобы активировать аккаунт.
+    </p>
+    <div style="background:var(--bg);border-radius:12px;padding:16px;font-size:13px;color:var(--muted);margin-bottom:24px;">
+      💡 Не видишь письмо? Проверь папку <strong>Спам</strong>.<br>
+      Ссылка действует <strong>24 часа</strong>.
+    </div>
+    <a href="{{ url_for('login') }}" class="btn btn-ghost" style="width:100%;justify-content:center;">
+      Вернуться ко входу
+    </a>
+  </div>
+</div>
+{% endblock %}

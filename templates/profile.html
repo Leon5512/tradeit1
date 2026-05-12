@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ user.username }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="card" style="margin-bottom:24px; display:flex; align-items:center; gap:20px;">
+    {% if user.avatar %}
+      <img src="/static/uploads/{{ user.avatar }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid {{ user.accent_color }};">
+    {% else %}
+      <div style="width:72px;height:72px;border-radius:50%;background:{{ user.accent_color }};display:flex;align-items:center;justify-content:center;font-size:30px;color:white;font-weight:800;flex-shrink:0;">
+        {{ user.username[0].upper() }}
+      </div>
+    {% endif %}
+    <div>
+      <h1 style="font-size:22px;font-weight:800;">{{ user.username }}</h1>
+      {% if user.city %}<p style="color:var(--muted);font-size:13px;">📍 {{ user.city }}</p>{% endif %}
+      {% if user.bio %}<p style="font-size:14px;margin-top:4px;">{{ user.bio }}</p>{% endif %}
+      <p style="color:var(--muted);font-size:13px;margin-top:4px;">{{ ads|length }} объявлений</p>
+    </div>
+  {% if session.username == user.username %}
+  <a href="/settings" class="btn btn-ghost btn-sm" style="margin-left:auto;">⚙️ Настройки</a>
+  {% elif session.user_id and session.user_id != user.id %}
+  <a href="/messages/{{ user.id }}" class="btn btn-primary" style="margin-left:auto;">💬 Написать</a>
+  {% endif %}
+  </div>
+
+  <div class="page-header">
+    <h2 style="font-size:18px; font-weight:800;">Объявления</h2>
+  </div>
+
+  {% if ads %}
+  <div class="ads-grid">
+    {% for ad in ads %}
+    <a href="/ad/{{ ad.id }}" class="ad-card">
+      {% if ad.image %}
+        <img src="/static/uploads/{{ ad.image }}" class="ad-img" alt="{{ ad.title }}">
+      {% else %}
+        <div class="ad-img-placeholder">🏷️</div>
+      {% endif %}
+      <div class="ad-body">
+        <div class="ad-price">{{ "{:,.0f}".format(ad.price) }} ₽</div>
+        <div class="ad-title">{{ ad.title }}</div>
+        <div class="ad-meta">{{ ad.city }} · {{ ad.category }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center; padding:40px; color:var(--muted);">
+    <div style="font-size:48px; margin-bottom:12px;">📭</div>
+    <p>Нет активных объявлений</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

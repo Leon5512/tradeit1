@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мессенджер · TradeIt</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--primary:#6c47ff;--primary2:#00aeef;--accent:#ff6a00;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--success:#22c55e;--error:#ef4444;--radius:14px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+  .msn-header{background:var(--card);border-bottom:2px solid var(--primary);padding:0 20px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+  .msn-logo{font-size:20px;font-weight:800;background:linear-gradient(135deg,#6c47ff,#00aeef);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .msn-num{font-size:12px;color:var(--muted);background:var(--card2);padding:3px 10px;border-radius:20px;border:1px solid var(--border);}
+  .msn-back{color:var(--muted);text-decoration:none;font-size:13px;font-weight:700;margin-left:auto;padding:6px 14px;border:1px solid var(--border);border-radius:10px;transition:.15s;}
+  .msn-back:hover{color:var(--text);border-color:var(--primary);}
+  .msn-body{display:flex;flex:1;overflow:hidden;}
+  /* Sidebar */
+  .msn-sidebar{width:300px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+  .msn-search{padding:12px;border-bottom:1px solid var(--border);}
+  .msn-search form{display:flex;gap:8px;}
+  .msn-search input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;}
+  .msn-search input::placeholder{color:var(--muted);}
+  .msn-search button{background:var(--primary);border:none;border-radius:10px;padding:8px 12px;color:white;cursor:pointer;font-size:14px;}
+  .msn-tabs{display:flex;border-bottom:1px solid var(--border);}
+  .msn-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;}
+  .msn-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+  .msn-list{flex:1;overflow-y:auto;}
+  .msn-item{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);transition:.15s;}
+  .msn-item:hover{background:var(--card2);}
+  .msn-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;overflow:hidden;}
+  .msn-av img{width:100%;height:100%;object-fit:cover;}
+  .msn-item-info{flex:1;min-width:0;}
+  .msn-item-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .msn-item-num{font-size:11px;color:var(--muted);}
+  .msn-item-last{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .msn-badge{background:var(--primary);color:white;border-radius:50%;min-width:18px;height:18px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;}
+  /* Main area */
+  .msn-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px;}
+  .msn-welcome{text-align:center;}
+  .msn-welcome h2{font-size:28px;font-weight:800;background:linear-gradient(135deg,#6c47ff,#00aeef);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;}
+  .msn-welcome p{color:var(--muted);font-size:15px;}
+  .msn-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  .msn-action-btn{padding:12px 24px;border-radius:var(--radius);font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;border:none;transition:.15s;}
+  .msn-action-btn.purple{background:var(--primary);color:white;}
+  .msn-action-btn.purple:hover{opacity:.85;}
+  .msn-action-btn.outline{background:transparent;color:var(--primary);border:2px solid var(--primary);}
+  .msn-action-btn.outline:hover{background:var(--primary);color:white;}
+  /* Status bar */
+  .msn-status-bar{background:var(--card2);border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .msn-status-bar input{flex:1;background:transparent;border:none;color:var(--muted);font-family:inherit;font-size:13px;outline:none;}
+  .msn-status-bar input::placeholder{color:var(--muted);}
+  .msn-status-bar button{background:var(--primary);border:none;border-radius:8px;padding:6px 14px;color:white;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+  /* Statuses panel */
+  .msn-statuses{padding:12px 16px;border-bottom:1px solid var(--border);}
+  .msn-statuses-title{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+  .msn-status-item{font-size:12px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:6px;}
+  .msn-status-item strong{color:var(--text);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;height:100%;overflow-y:auto;}
+
+  /* ── Мобильные исправления ────────────────── */
+  @media (max-width: 768px) {
+    /* Поиск и строка статуса — нормальный размер */
+    .msn-search input{font-size:16px !important;padding:10px 14px !important;min-height:44px;}
+    .msn-status-bar input{font-size:16px !important;padding:10px 0 !important;}
+    /* Шапка мессенджера */
+    .msn-header{padding:0 12px;}
+    .msn-header-title{font-size:18px;}
+    /* Список диалогов — чуть просторнее */
+    .dialog-item{padding:12px 14px;gap:12px;}
+    .dialog-av{width:44px;height:44px;font-size:18px;}
+    .dialog-name{font-size:15px;}
+    /* Кнопки вкладок */
+    .msn-tabs{padding:0 10px;}
+    .msn-tab{padding:10px 14px;font-size:14px;}
+    /* Нижний отступ под нижнюю навигацию */
+    .msn-body{padding-bottom:70px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="msn-header">
+  <div class="msn-logo">🚀 TradeIt MSN</div>
+  <div class="msn-num">{{ profile.msn_username }} · {{ profile.msn_number }}</div>
+  <a href="/" class="msn-back">← На сайт</a>
+</div>
+
+<div class="msn-body">
+  <!-- Sidebar -->
+  <div class="msn-sidebar">
+    <div class="msn-search">
+      <form action="/messenger/find" method="get">
+        <input type="text" name="q" placeholder="Поиск по имени или #номеру...">
+        <button type="submit">🔍</button>
+      </form>
+    </div>
+
+    <div class="msn-tabs">
+      <div class="msn-tab active" onclick="switchTab('chats',this)">💬 Чаты</div>
+      <div class="msn-tab" onclick="switchTab('groups',this)">👥 Группы</div>
+    </div>
+
+    <!-- Статусы -->
+    {% if statuses %}
+    <div class="msn-statuses">
+      <div class="msn-statuses-title">📡 Статусы</div>
+      {% for s in statuses %}
+      <div class="msn-status-item"><strong>{{ s.name }}:</strong> {{ s.text }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Диалоги -->
+    <div id="tab-chats" class="tab-content active msn-list">
+      {% for d in dialogs %}
+      <a class="msn-item" href="/messenger/chat/{{ d.id }}">
+        <div class="msn-av">
+          {% if d.av %}<img src="/static/uploads/{{ d.av }}">{% else %}{{ d.name[0].upper() }}{% endif %}
+        </div>
+        <div class="msn-item-info">
+          <div class="msn-item-name">{{ d.name }}</div>
+          <div class="msn-item-num">{{ d.num }}</div>
+          <div class="msn-item-last">{{ d.last[:40] }}</div>
+        </div>
+      </a>
+      {% else %}
+      <div style="padding:24px;text-align:center;color:var(--muted);font-size:14px;">Нет диалогов.<br>Найди собеседника через поиск!</div>
+      {% endfor %}
+    </div>
+
+    <!-- Группы -->
+    <div id="tab-groups" class="tab-content msn-list">
+      <a class="msn-item" href="/messenger/group/new" style="color:var(--primary);">
+        <div class="msn-av" style="background:var(--card2);font-size:20px;">+</div>
+        <div class="msn-item-info">
+          <div class="msn-item-name">Создать группу</div>
+        </div>
+      </a>
+      {% for g in groups %}
+      <a class="msn-item" href="/messenger/group/{{ g.id }}">
+        <div class="msn-av" style="background:linear-gradient(135deg,#ff6a00,#6c47ff);">
+          {% if g.avatar %}<img src="/static/uploads/{{ g.avatar }}">{% else %}{{ g.name[0].upper() }}{% endif %}
+        </div>
+        <div class="msn-item-info">
+          <div class="msn-item-name">{{ g.name }}</div>
+          <div class="msn-item-num">Группа</div>
+        </div>
+      </a>
+      {% else %}
+      <div style="padding:24px;text-align:center;color:var(--muted);font-size:14px;">Нет групп.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="msn-main">
+    <div class="msn-welcome">
+      <h2>Привет, {{ profile.msn_username }}! 👋</h2>
+      <p>Твой номер: <strong style="color:var(--primary);">{{ profile.msn_number }}</strong> · Поделись им чтобы тебя нашли</p>
+    </div>
+    <div class="msn-actions">
+      <a href="/messenger/find" class="msn-action-btn purple">🔍 Найти собеседника</a>
+      <a href="/messenger/group/new" class="msn-action-btn outline">👥 Создать группу</a>
+    </div>
+  </div>
+</div>
+
+<!-- Статус -->
+<div class="msn-status-bar">
+  <span style="font-size:13px;color:var(--muted);">📝 Статус:</span>
+  <form action="/messenger/status" method="post" style="display:flex;flex:1;gap:8px;">
+    <input type="text" name="text" placeholder="Что у тебя сейчас?" maxlength="200">
+    <button type="submit">Обновить</button>
+  </form>
+</div>
+
+<script>
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.msn-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

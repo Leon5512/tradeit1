@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Сообщения{% endblock %}
+{% block content %}
+<div class="container" style="max-width:680px;">
+  <div class="page-header" style="margin-top:20px;">
+    <h1>Сообщения</h1>
+  </div>
+  <div class="card" style="padding:0; overflow:hidden;">
+    {% if dialogs %}
+      {% for d in dialogs %}
+      <a href="/messages/{{ d.other_id }}" style="display:flex; align-items:center; gap:14px; padding:16px 20px; text-decoration:none; color:var(--text); border-bottom:1px solid var(--border); transition:background .15s;"
+         onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+        <div style="width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--accent)); display:flex; align-items:center; justify-content:center; font-size:20px; color:white; font-weight:800; flex-shrink:0;">
+          {{ d.other_username[0].upper() }}
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:{% if d.unread %}800{% else %}600{% endif %}; font-size:15px;">{{ d.other_username }}</div>
+          <div style="font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.last_msg }}</div>
+        </div>
+        {% if d.unread %}
+        <span class="unread-badge">{{ d.unread }}</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+    {% else %}
+    <div style="text-align:center; padding:60px; color:var(--muted);">
+      <div style="font-size:52px; margin-bottom:12px;">💬</div>
+      <h3>Пока нет диалогов</h3>
+      <p style="font-size:14px; margin-top:6px;">Напиши продавцу из любого объявления</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

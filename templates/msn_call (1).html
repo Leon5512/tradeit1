@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Звонок · {{ other.msn_username }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--primary:#6c47ff;--primary2:#00aeef;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--success:#22c55e;--error:#ef4444;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;user-select:none;}
+
+  .call-card{background:var(--card);border-radius:24px;padding:48px 40px;width:360px;display:flex;flex-direction:column;align-items:center;gap:0;border:1px solid var(--border);position:relative;}
+
+  .call-av{width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;overflow:hidden;margin-bottom:20px;flex-shrink:0;}
+  .call-av img{width:100%;height:100%;object-fit:cover;}
+
+  .call-name{font-size:24px;font-weight:800;margin-bottom:6px;text-align:center;}
+  .call-num{font-size:14px;color:var(--muted);margin-bottom:24px;}
+
+  .call-status{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:32px;min-height:22px;text-align:center;}
+  .call-status.active{color:var(--success);}
+  .call-status.ringing{animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .call-timer{font-size:28px;font-weight:800;color:var(--success);margin-bottom:32px;font-variant-numeric:tabular-nums;min-height:36px;}
+
+  /* Remote / local video */
+  .video-wrap{position:relative;width:100%;border-radius:16px;overflow:hidden;background:#000;margin-bottom:24px;display:none;}
+  .video-wrap.show{display:block;}
+  #remote-video{width:100%;max-height:200px;object-fit:cover;display:block;}
+  #local-video{position:absolute;bottom:8px;right:8px;width:80px;height:60px;border-radius:8px;object-fit:cover;border:2px solid var(--primary);}
+
+  /* Controls */
+  .call-controls{display:flex;gap:16px;align-items:center;justify-content:center;}
+  .ctrl-btn{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:.15s;flex-shrink:0;}
+  .ctrl-btn:hover{transform:scale(1.08);}
+  .ctrl-btn:active{transform:scale(.93);}
+  .btn-end{background:var(--error);}
+  .btn-mic{background:var(--card2);border:1px solid var(--border);}
+  .btn-mic.muted{background:#3a1a1a;border-color:var(--error);}
+  .btn-spk{background:var(--card2);border:1px solid var(--border);}
+  .btn-cam{background:var(--card2);border:1px solid var(--border);}
+  .btn-cam.off{background:#3a1a1a;border-color:var(--error);}
+  .btn-accept{background:var(--success);width:72px;height:72px;font-size:28px;}
+  .btn-reject{background:var(--error);width:72px;height:72px;font-size:28px;}
+
+  .incoming-btns{display:flex;gap:40px;align-items:center;justify-content:center;}
+
+  .divider{width:100%;height:1px;background:var(--border);margin:20px 0;}
+
+  /* Peer connection quality indicator */
+  .quality{position:absolute;top:16px;right:16px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+  .quality-dot{width:8px;height:8px;border-radius:50%;background:var(--success);}
+  .quality-dot.bad{background:var(--error);}
+  .quality-dot.mid{background:#f59e0b;}
+
+  /* Ringtone selector */
+  .ringtone-wrap{margin-top:18px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);}
+  .ringtone-wrap select{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-family:'Nunito',sans-serif;font-size:13px;cursor:pointer;outline:none;}
+  .ringtone-wrap select:focus{border-color:var(--primary);}
+  .btn-preview{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 9px;font-size:13px;transition:.15s;}
+  .btn-preview:hover{border-color:var(--primary);color:var(--primary);}
+</style>
+</head>
+<body>
+
+<div class="call-card" id="call-card">
+  <div class="quality" id="quality-ind" style="display:none;">
+    <div class="quality-dot" id="quality-dot"></div>
+    <span id="quality-label">хорошее</span>
+  </div>
+
+  <div class="call-av" id="av">
+    {% if other.avatar %}<img src="/static/uploads/{{ other.avatar }}">{% else %}{{ other.msn_username[0].upper() }}{% endif %}
+  </div>
+  <div class="call-name">{{ other.msn_username }}</div>
+  <div class="call-num">{{ other.msn_number }}</div>
+  <div class="call-status ringing" id="call-status">
+    {% if is_caller %}Вызов...{% else %}Входящий звонок{% endif %}
+  </div>
+  <div class="call-timer" id="call-timer" style="display:none;">0:00</div>
+
+  <div class="video-wrap" id="video-wrap">
+    <video id="remote-video" autoplay playsinline></video>
+    <video id="local-video" autoplay playsinline muted></video>
+  </div>
+
+  {% if not is_caller %}
+  <!-- Incoming call buttons -->
+  <div class="incoming-btns" id="incoming-btns">
+    <button class="ctrl-btn btn-reject" onclick="rejectCall()" title="Отклонить">📵</button>
+    <button class="ctrl-btn btn-accept" onclick="acceptCall()" title="Принять">📞</button>
+  </div>
+  {% endif %}
+
+  <!-- Active call controls (shown after accept) -->
+  <div class="call-controls" id="call-controls" {% if not is_caller %}style="display:none;"{% endif %}>
+    <button class="ctrl-btn btn-mic" id="btn-mic" onclick="toggleMic()" title="Микрофон">🎤</button>
+    <button class="ctrl-btn btn-end" onclick="hangUp()" title="Завершить">📵</button>
+    <button class="ctrl-btn btn-spk" id="btn-spk" onclick="toggleSpk()" title="Динамик">🔊</button>
+  </div>
+
+  <!-- Ringtone selector -->
+  <div class="ringtone-wrap" id="ringtone-selector">
+    <span>🎵 Рингтон:</span>
+    <select id="ringtone-select" onchange="changeRingtone(this.value)">
+      <option value="classic">Классический</option>
+      <option value="modern">Современный</option>
+      <option value="retro">Ретро</option>
+      <option value="soft">Мягкий</option>
+      <option value="urgent">Срочный</option>
+    </select>
+    <button class="btn-preview" onclick="previewRingtone()">▶ Тест</button>
+  </div>
+</div>
+
+<script>
+const CALL_ID = {{ call.call_id | tojson }};
+const IS_CALLER = {{ 'true' if is_caller else 'false' }};
+const ME_ID = {{ me.id }};
+const OTHER_ID = {{ other.id }};
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ]
+};
+
+let pc = null;
+let localStream = null;
+let lastSignalId = 0;
+let callTimer = null;
+let callSeconds = 0;
+let micMuted = false;
+let pollInterval = null;
+
+function log(msg) { console.log('[MSN Call]', msg); }
+
+// ══════════════════════════════════════════════
+// ── ЗВУКИ ЧЕРЕЗ WEB AUDIO API ─────────────────
+// ══════════════════════════════════════════════
+let audioCtx = null;
+let ringInterval = null;
+let ringActive = false;
+
+// Текущий рингтон (сохраняется в localStorage)
+let currentRingtone = localStorage.getItem('msn_ringtone') || 'classic';
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq, duration, volume=0.3, type='sine', when=0) {
+  const ctx = getAudioCtx();
+  const t = ctx.currentTime + when;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(volume, t + 0.01);
+  gain.gain.linearRampToValueAtTime(volume, t + duration - 0.05);
+  gain.gain.linearRampToValueAtTime(0, t + duration);
+  osc.start(t);
+  osc.stop(t + duration);
+}
+
+// ── Рингтоны ──────────────────────────────────
+const RINGTONES = {
+  classic: {
+    label: 'Классический',
+    callee: () => {
+      for (let i = 0; i < 2; i++) {
+        beep(880, 0.15, 0.35, 'square', i * 0.22);
+        beep(660, 0.15, 0.35, 'square', i * 0.22 + 0.15);
+      }
+    },
+    caller: () => {
+      beep(440, 1.0, 0.25, 'sine');
+      beep(440, 1.0, 0.25, 'sine', 1.0);
+    },
+    period: { caller: 3000, callee: 2800 }
+  },
+  modern: {
+    label: 'Современный',
+    callee: () => {
+      beep(523, 0.1, 0.3, 'sine');
+      beep(659, 0.1, 0.3, 'sine', 0.12);
+      beep(784, 0.1, 0.3, 'sine', 0.24);
+      beep(1047,0.2, 0.3, 'sine', 0.36);
+    },
+    caller: () => {
+      beep(523, 0.08, 0.2, 'sine');
+      beep(659, 0.08, 0.2, 'sine', 0.1);
+      beep(784, 0.5, 0.2, 'sine', 0.2);
+    },
+    period: { caller: 2500, callee: 2200 }
+  },
+  retro: {
+    label: 'Ретро',
+    callee: () => {
+      for (let i = 0; i < 8; i++) {
+        beep(i % 2 === 0 ? 1200 : 900, 0.07, 0.28, 'square', i * 0.09);
+      }
+    },
+    caller: () => {
+      for (let i = 0; i < 4; i++) {
+        beep(800, 0.12, 0.2, 'square', i * 0.18);
+      }
+    },
+    period: { caller: 2000, callee: 1800 }
+  },
+  soft: {
+    label: 'Мягкий',
+    callee: () => {
+      beep(392, 0.4, 0.2, 'sine');
+      beep(440, 0.4, 0.2, 'sine', 0.5);
+    },
+    caller: () => {
+      beep(330, 0.8, 0.18, 'sine');
+      beep(330, 0.8, 0.18, 'sine', 1.0);
+    },
+    period: { caller: 3500, callee: 3000 }
+  },
+  urgent: {
+    label: 'Срочный',
+    callee: () => {
+      for (let i = 0; i < 6; i++) {
+        beep(1000, 0.06, 0.4, 'sawtooth', i * 0.1);
+      }
+    },
+    caller: () => {
+      beep(600, 0.15, 0.3, 'sawtooth');
+      beep(700, 0.15, 0.3, 'sawtooth', 0.18);
+      beep(600, 0.15, 0.3, 'sawtooth', 0.36);
+    },
+    period: { caller: 1500, callee: 1200 }
+  }
+};
+
+function changeRingtone(name) {
+  currentRingtone = name;
+  localStorage.setItem('msn_ringtone', name);
+  // Если сейчас звонит — перезапустить с новым рингтоном
+  if (ringActive) {
+    stopRing();
+    startRing(IS_CALLER);
+  }
+}
+
+function previewRingtone() {
+  getAudioCtx();
+  const rt = RINGTONES[currentRingtone] || RINGTONES.classic;
+  rt.callee();
+}
+
+function playRingCaller() {
+  const rt = RINGTONES[currentRingtone] || RINGTONES.classic;
+  rt.caller();
+}
+
+function playRingCallee() {
+  const rt = RINGTONES[currentRingtone] || RINGTONES.classic;
+  rt.callee();
+}
+
+function playConnected() {
+  beep(523, 0.12, 0.28, 'sine');
+  beep(659, 0.12, 0.28, 'sine', 0.13);
+  beep(784, 0.20, 0.28, 'sine', 0.26);
+}
+
+function playBusy() {
+  beep(480, 0.25, 0.28, 'sine');
+  beep(480, 0.25, 0.28, 'sine', 0.3);
+  beep(440, 0.35, 0.25, 'sine', 0.6);
+}
+
+function playReject() {
+  beep(320, 0.18, 0.3, 'sawtooth');
+  beep(280, 0.25, 0.3, 'sawtooth', 0.22);
+}
+
+function startRing(isCaller) {
+  if (ringActive) return;
+  ringActive = true;
+  const rt = RINGTONES[currentRingtone] || RINGTONES.classic;
+  const fn = isCaller ? playRingCaller : playRingCallee;
+  fn();
+  const period = isCaller ? rt.period.caller : rt.period.callee;
+  ringInterval = setInterval(() => { if (ringActive) fn(); }, period);
+}
+
+function stopRing() {
+  ringActive = false;
+  clearInterval(ringInterval);
+  ringInterval = null;
+}
+
+// Разблокировка AudioContext при первом касании (iOS)
+document.addEventListener('click', () => getAudioCtx(), { once: true });
+document.addEventListener('touchstart', () => getAudioCtx(), { once: true });
+
+// ══════════════════════════════════════════════
+// ── ОСНОВНАЯ ЛОГИКА ЗВОНКА ─────────────────────
+// ══════════════════════════════════════════════
+
+async function sendSignal(type, payload) {
+  await fetch('/api/msn/call/signal', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({call_id: CALL_ID, type, payload, to_id: OTHER_ID})
+  });
+}
+
+async function getLocalStream(video=false) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({audio: true, video});
+    if (video) {
+      document.getElementById('local-video').srcObject = localStream;
+      document.getElementById('video-wrap').classList.add('show');
+    }
+  } catch(e) {
+    log('getUserMedia error: ' + e);
+    localStream = await navigator.mediaDevices.getUserMedia({audio: true}).catch(()=>null);
+  }
+  return localStream;
+}
+
+function setupPC() {
+  pc = new RTCPeerConnection(ICE_SERVERS);
+
+  pc.onicecandidate = e => {
+    if (e.candidate) sendSignal('ice', JSON.stringify(e.candidate));
+  };
+
+  pc.ontrack = e => {
+    log('Got remote track');
+    const rv = document.getElementById('remote-video');
+    if (!rv.srcObject) rv.srcObject = new MediaStream();
+    rv.srcObject.addTrack(e.track);
+    document.getElementById('video-wrap').classList.add('show');
+  };
+
+  pc.onconnectionstatechange = () => {
+    log('Connection state: ' + pc.connectionState);
+    const dot = document.getElementById('quality-dot');
+    const lbl = document.getElementById('quality-label');
+    const ind = document.getElementById('quality-ind');
+    if (pc.connectionState === 'connected') {
+      ind.style.display = 'flex';
+      dot.className = 'quality-dot';
+      lbl.textContent = 'хорошее';
+    } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      dot.className = 'quality-dot bad';
+      lbl.textContent = 'обрыв';
+      hangUp();
+    }
+  };
+
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  return pc;
+}
+
+async function startCall() {
+  startRing(true);
+  setStatus('Вызов...', 'ringing');
+  await getLocalStream();
+  setupPC();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await sendSignal('offer', JSON.stringify(offer));
+  startPolling();
+}
+
+async function acceptCall() {
+  stopRing();
+  playConnected();
+  document.getElementById('incoming-btns').style.display = 'none';
+  document.getElementById('call-controls').style.display = 'flex';
+  document.getElementById('ringtone-selector').style.display = 'none';
+  setStatus('Подключение...', 'ringing');
+  await getLocalStream();
+  setupPC();
+  startPolling();
+}
+
+async function rejectCall() {
+  stopRing();
+  playReject();
+  await sendSignal('reject', '');
+  window.location.href = '/messenger';
+}
+
+async function hangUp() {
+  stopRing();
+  playBusy();
+  clearInterval(callTimer);
+  clearInterval(pollInterval);
+  await sendSignal('hangup', '');
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  window.location.href = '/messenger';
+}
+
+function startTimer() {
+  callSeconds = 0;
+  callTimer = setInterval(() => {
+    callSeconds++;
+    const m = Math.floor(callSeconds / 60);
+    const s = callSeconds % 60;
+    document.getElementById('call-timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+  document.getElementById('call-timer').style.display = 'block';
+}
+
+function setStatus(text, cls='') {
+  const el = document.getElementById('call-status');
+  el.textContent = text;
+  el.className = 'call-status ' + cls;
+}
+
+function toggleMic() {
+  micMuted = !micMuted;
+  if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+  const btn = document.getElementById('btn-mic');
+  btn.classList.toggle('muted', micMuted);
+  btn.title = micMuted ? 'Включить микрофон' : 'Выключить микрофон';
+  btn.textContent = micMuted ? '🔇' : '🎤';
+}
+
+function toggleSpk() {
+  const rv = document.getElementById('remote-video');
+  rv.muted = !rv.muted;
+  document.getElementById('btn-spk').textContent = rv.muted ? '🔈' : '🔊';
+}
+
+async function handleSignal(sig) {
+  log('Got signal: ' + sig.type);
+  if (sig.type === 'offer') {
+    const offer = JSON.parse(sig.payload);
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await sendSignal('answer', JSON.stringify(answer));
+    setStatus('Соединение...', 'ringing');
+  } else if (sig.type === 'answer') {
+    stopRing();
+    playConnected();
+    const answer = JSON.parse(sig.payload);
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    setStatus('● В звонке', 'active');
+    document.getElementById('ringtone-selector').style.display = 'none';
+    startTimer();
+  } else if (sig.type === 'ice') {
+    try {
+      const cand = JSON.parse(sig.payload);
+      await pc.addIceCandidate(new RTCIceCandidate(cand));
+    } catch(e) { log('ICE error: ' + e); }
+  } else if (sig.type === 'reject') {
+    stopRing();
+    playReject();
+    setStatus('Звонок отклонён', '');
+    clearInterval(pollInterval);
+    setTimeout(() => window.location.href = '/messenger', 2000);
+  } else if (sig.type === 'hangup') {
+    stopRing();
+    playBusy();
+    clearInterval(callTimer);
+    clearInterval(pollInterval);
+    setStatus('Звонок завершён', '');
+    if (pc) { pc.close(); pc = null; }
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    setTimeout(() => window.location.href = '/messenger', 2000);
+  }
+}
+
+function startPolling() {
+  pollInterval = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/msn/call/poll/${CALL_ID}?since=${lastSignalId}`);
+      const d = await r.json();
+      if (d.signals && d.signals.length > 0) {
+        lastSignalId = d.last_id;
+        for (const sig of d.signals) await handleSignal(sig);
+      }
+      if (d.call_status === 'hangup' || d.call_status === 'reject') {
+        clearInterval(pollInterval);
+        setStatus('Звонок завершён', '');
+        setTimeout(() => window.location.href = '/messenger', 2000);
+      }
+    } catch(e) { log('Poll error: ' + e); }
+  }, 1000);
+}
+
+// ── Инициализация ──────────────────────────────
+// Восстановить выбранный рингтон в select
+document.getElementById('ringtone-select').value = currentRingtone;
+
+if (IS_CALLER) {
+  startCall();
+} else {
+  startRing(false);
+}
+
+// Safety: auto-hangup after 60 sec if still ringing
+setTimeout(() => {
+  const status = document.getElementById('call-status').textContent;
+  if (status.includes('Вызов') || status.includes('ожидание')) {
+    stopRing();
+    setStatus('Нет ответа', '');
+    setTimeout(() => hangUp(), 2000);
+  }
+}, 60000);
+</script>
+</body>
+</html>

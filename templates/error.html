@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Ошибка {{ code }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:480px;text-align:center;padding-top:80px;">
+  <div style="font-size:80px;margin-bottom:16px;">{% if code==429 %}🛡️{% elif code==403 %}🚫{% else %}😕{% endif %}</div>
+  <h1 style="font-size:64px;font-weight:800;color:var(--primary);">{{ code }}</h1>
+  <p style="font-size:18px;font-weight:600;margin:12px 0;">{{ msg }}</p>
+  <a href="/" class="btn btn-primary" style="margin-top:20px;">На главную</a>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+from database import init_db
+init_db()
+exit()
+pip install flask-mail
+from database import init_db
+init_db()
+exit()
+import sqlite3
+conn = sqlite3.connect('/home/tradeit/avito.db')
+conn.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
+conn.commit()
+conn.close()
+exit()

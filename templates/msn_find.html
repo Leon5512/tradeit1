@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Найти собеседника · TradeIt MSN</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--primary:#6c47ff;--primary2:#00aeef;--accent:#ff6a00;--text:#e8eaf6;--muted:#7a8ba0;--border:#2a2a4a;--error:#ef4444;--radius:14px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  .header{background:var(--card);border-bottom:2px solid var(--primary);padding:0 20px;height:56px;display:flex;align-items:center;gap:12px;}
+  .back{color:var(--muted);text-decoration:none;font-size:22px;padding:4px;}
+  .back:hover{color:var(--text);}
+  .header h1{font-size:18px;font-weight:800;}
+
+  .wrap{max-width:600px;margin:28px auto;padding:0 16px;}
+
+  .search-box{display:flex;gap:10px;margin-bottom:24px;}
+  .search-box input{flex:1;background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:inherit;font-size:15px;outline:none;transition:.15s;}
+  .search-box input:focus{border-color:var(--primary);}
+  .search-box input::placeholder{color:var(--muted);}
+  .search-box button{background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;border-radius:var(--radius);padding:12px 22px;color:white;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap;}
+
+  .results-title{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+
+  .user-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px;transition:.15s;}
+  .user-card:hover{border-color:var(--primary);background:var(--card2);}
+  .user-av{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0;overflow:hidden;}
+  .user-av img{width:100%;height:100%;object-fit:cover;}
+  .user-info{flex:1;min-width:0;}
+  .user-name{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .user-num{font-size:12px;color:var(--muted);margin-top:2px;}
+
+  .card-actions{display:flex;gap:8px;flex-shrink:0;}
+  .btn-chat{background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;border:none;border-radius:10px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:.15s;}
+  .btn-chat:hover{opacity:.85;}
+  /* ── Кнопка звонка на карточке ────────────── */
+  .btn-call-card{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:.15s;text-decoration:none;flex-shrink:0;}
+  .btn-call-card:hover{opacity:.85;transform:scale(1.08);}
+  .btn-call-card:active{transform:scale(.95);}
+
+  .empty{text-align:center;padding:48px 20px;color:var(--muted);}
+  .empty .icon{font-size:48px;margin-bottom:12px;}
+  .empty h3{font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;}
+  .empty p{font-size:14px;}
+
+  .hint{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:flex-start;}
+  .hint strong{color:var(--text);}
+
+  /* Уведомление о звонке */
+  #call-toast{display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--card);border:2px solid #22c55e;border-radius:var(--radius);padding:14px 20px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:260px;text-align:center;}
+  #call-toast p{font-size:13px;color:var(--muted);margin:4px 0 12px;}
+  #call-toast h3{font-weight:800;}
+  .toast-btns{display:flex;gap:8px;justify-content:center;}
+  .btn-accept{background:#22c55e;color:white;border:none;border-radius:10px;padding:9px 20px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;}
+  .btn-decline{background:var(--error);color:white;border:none;border-radius:10px;padding:9px 20px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/messenger" class="back">←</a>
+  <h1>🔍 Найти собеседника</h1>
+</div>
+
+<!-- Входящий звонок -->
+<div id="call-toast">
+  <h3 id="toast-caller">Входящий звонок</h3>
+  <p>звонит тебе...</p>
+  <div class="toast-btns">
+    <button class="btn-accept" onclick="acceptCall()">✅ Принять</button>
+    <button class="btn-decline" onclick="declineCall()">❌ Отклонить</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <form action="/messenger/find" method="get" class="search-box">
+    <input type="text" name="q" placeholder="Имя или #номер..." value="{{ q }}" autofocus>
+    <button type="submit">Найти</button>
+  </form>
+
+  {% if not q %}
+  <div class="hint">
+    <span style="font-size:20px;">💡</span>
+    <div>Ищи по <strong>имени</strong> или точному <strong>#номеру</strong>. Поделись своим номером <strong style="color:var(--primary);">{{ profile.msn_number }}</strong>, чтобы тебя нашли.</div>
+  </div>
+  {% endif %}
+
+  {% if q %}
+    {% if results %}
+    <div class="results-title">Результаты по «{{ q }}» — {{ results|length }}</div>
+    {% for u in results %}
+    <div class="user-card">
+      <div class="user-av">
+        {% if u.avatar %}<img src="/static/uploads/{{ u.avatar }}">{% else %}{{ u.msn_username[0].upper() }}{% endif %}
+      </div>
+      <div class="user-info">
+        <div class="user-name">{{ u.msn_username }}</div>
+        <div class="user-num">{{ u.msn_number }}</div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-call-card" onclick="callUser({{ u.id }}, '{{ u.msn_username }}')" title="Позвонить">📞</button>
+        <a href="/messenger/chat/{{ u.id }}" class="btn-chat">💬 Написать</a>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">
+      <div class="icon">🔍</div>
+      <h3>Никого не найдено</h3>
+      <p>Попробуй другое имя или точный #номер</p>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+<script>
+let incomingCallId = null;
+
+async function callUser(profileId, name) {
+  try {
+    const r = await fetch(`/api/msn/call/initiate/${profileId}`, {method:'POST'});
+    const d = await r.json();
+    if (!d.ok) { alert(d.msg || 'Ошибка звонка'); return; }
+    window.location.href = `/messenger/call/${d.call_id}`;
+  } catch(e) { alert('Ошибка соединения'); }
+}
+
+async function acceptCall() {
+  document.getElementById('call-toast').style.display = 'none';
+  if (incomingCallId) window.location.href = `/messenger/call/${incomingCallId}`;
+}
+
+async function declineCall() {
+  document.getElementById('call-toast').style.display = 'none';
+  if (incomingCallId) {
+    await fetch('/api/msn/call/signal', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({call_id: incomingCallId, type:'reject', payload:'', to_id: 0})
+    }).catch(()=>{});
+    incomingCallId = null;
+  }
+}
+
+async function checkIncoming() {
+  try {
+    const r = await fetch('/api/msn/call/incoming');
+    const d = await r.json();
+    if (d.incoming) {
+      const toast = document.getElementById('call-toast');
+      if (toast.style.display !== 'block') {
+        incomingCallId = d.call.call_id;
+        document.getElementById('toast-caller').textContent = d.call.caller_name || 'Входящий звонок';
+        toast.style.display = 'block';
+      }
+    }
+  } catch(e) {}
+}
+setInterval(checkIncoming, 3000);
+</script>
+</body>
+</html>
