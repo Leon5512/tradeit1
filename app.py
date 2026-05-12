@@ -257,6 +257,7 @@ def tfa_enable():
         )
         db.commit()
         session.pop("pending_totp_secret", None)
+        session["user_id"] = uid
         return jsonify({"ok": True})
 
     return jsonify({"ok": False, "msg": "Неизвестный метод"})
