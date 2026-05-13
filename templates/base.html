@@ -214,6 +214,72 @@ body.force-mobile .chat-input { display:flex!important;align-items:center!import
 body.force-mobile .chat-input input { flex:1!important;min-width:0!important;font-size:16px!important;padding:14px 18px!important;border-radius:25px!important;height:48px!important; }
 body.force-mobile .chat-input button { flex-shrink:0!important;min-width:44px;height:44px; }
 </style>
+
+<!-- ══ ANIMATIONS ══════════════════════════════════════════════════════════ -->
+<style>
+/* ── Загрузка страницы ── */
+@keyframes _pageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+body{animation:_pageIn .45s cubic-bezier(.22,1,.36,1) both;}
+
+/* ── Navbar выезжает сверху ── */
+@keyframes _navDrop{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:translateY(0)}}
+nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
+
+/* ── Fade-in при скролле ── */
+.anim-fade{opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .5s cubic-bezier(.22,1,.36,1);}
+.anim-fade.anim-visible{opacity:1;transform:translateY(0);}
+.anim-fade:nth-child(2){transition-delay:.06s}
+.anim-fade:nth-child(3){transition-delay:.12s}
+.anim-fade:nth-child(4){transition-delay:.18s}
+.anim-fade:nth-child(5){transition-delay:.24s}
+.anim-fade:nth-child(6){transition-delay:.30s}
+
+/* ── Hover карточки ── */
+.ad-card{transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .28s ease!important;will-change:transform;}
+.ad-card:hover{transform:translateY(-7px) scale(1.018)!important;box-shadow:0 18px 40px rgba(0,0,0,.15)!important;}
+.ad-card .ad-img,.ad-card .ad-img-placeholder{transition:transform .4s cubic-bezier(.22,1,.36,1);}
+.ad-card:hover .ad-img,.ad-card:hover .ad-img-placeholder{transform:scale(1.07);}
+.ad-card{overflow:hidden;}
+
+/* ── Hover кнопки ── */
+.btn{transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,background .15s!important;}
+.btn:hover{transform:translateY(-2px)!important;box-shadow:0 6px 18px rgba(0,0,0,.15)!important;filter:brightness(1.07);}
+.btn:active{transform:scale(.96)!important;transition-duration:.08s!important;}
+
+/* ── Ripple на кнопках ── */
+@keyframes _ripple{to{transform:scale(3.5);opacity:0}}
+.btn-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:_ripple .55s ease-out forwards;pointer-events:none;}
+
+/* ── Ссылки навигации ── */
+.nav-links a,.mobile-menu a{position:relative;transition:color .2s ease;}
+.nav-links a:not(.btn)::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:2px;background:var(--primary);transition:width .25s cubic-bezier(.22,1,.36,1);border-radius:2px;}
+.nav-links a:not(.btn):hover::after{width:100%;}
+
+/* ── Flash уведомления ── */
+@keyframes _flashIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.flash{animation:_flashIn .35s cubic-bezier(.22,1,.36,1) both!important;}
+
+/* ── Shake на форме при ошибке ── */
+@keyframes _shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.input-error-shake{animation:_shake .4s ease both;}
+
+/* ── Бейджи непрочитанных пульсируют ── */
+@keyframes _badgePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.unread-badge.has-unread,.nb-badge.show{animation:_badgePulse 2s ease infinite;}
+
+/* ── Page-transition overlay ── */
+#_page-overlay{position:fixed;inset:0;background:var(--primary);z-index:99999;pointer-events:none;transform-origin:bottom;transform:scaleY(0);}
+@keyframes _overlayOut{from{transform:scaleY(1);transform-origin:top}to{transform:scaleY(0);transform-origin:top}}
+#_page-overlay.leaving{transform:scaleY(1);transform-origin:bottom;transition:transform .3s cubic-bezier(.76,0,.24,1);}
+
+/* ── Скелетон shimmer ── */
+@keyframes _shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.skeleton{background:linear-gradient(90deg,rgba(0,0,0,.06) 25%,rgba(0,0,0,.12) 50%,rgba(0,0,0,.06) 75%);background-size:200% 100%;animation:_shimmer 1.4s ease infinite;border-radius:6px;}
+
+/* ── Уважаем prefers-reduced-motion ── */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+</style>
+<!-- ══ END ANIMATIONS ══════════════════════════════════════════════════════ -->
 </head>
 <body>
 
@@ -617,6 +683,95 @@ function checkAdminPass() {
 document.getElementById('admin-modal').addEventListener('click', function(e) { if (e.target === this) closeAdminModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdminModal(); });
 </script>
+
+<!-- ══ ANIMATIONS JS ══════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  /* 1. Page overlay — схлопывается при входе */
+  var ov = document.createElement('div');
+  ov.id = '_page-overlay';
+  document.body.appendChild(ov);
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      ov.style.cssText = 'position:fixed;inset:0;background:var(--primary);z-index:99999;pointer-events:none;transform-origin:top;transform:scaleY(1);transition:transform .45s cubic-bezier(.76,0,.24,1);';
+      requestAnimationFrame(function(){ ov.style.transform = 'scaleY(0)'; });
+    });
+  });
+
+  /* 2. Уход со страницы */
+  document.addEventListener('click', function(e){
+    var link = e.target.closest('a[href]');
+    if (!link) return;
+    var href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') ||
+        href.startsWith('javascript') || link.target === '_blank' ||
+        (link.hostname && link.hostname !== location.hostname)) return;
+    e.preventDefault();
+    ov.style.transform = 'scaleY(1)';
+    ov.style.transformOrigin = 'bottom';
+    setTimeout(function(){ window.location.href = href; }, 320);
+  });
+
+  /* 3. Scroll reveal */
+  function initReveal(){
+    var items = document.querySelectorAll('.ad-card, .card, article, .page-header, .form-group, h2');
+    items.forEach(function(el){
+      if (el.closest('nav,footer,#admin-modal')) return;
+      el.classList.add('anim-fade');
+    });
+    if (!('IntersectionObserver' in window)){
+      document.querySelectorAll('.anim-fade').forEach(function(el){ el.classList.add('anim-visible'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){ en.target.classList.add('anim-visible'); io.unobserve(en.target); }
+      });
+    },{threshold:0.1,rootMargin:'0px 0px -30px 0px'});
+    document.querySelectorAll('.anim-fade').forEach(function(el){ io.observe(el); });
+  }
+
+  /* 4. Ripple на кнопках */
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.btn');
+    if (!btn) return;
+    var r = document.createElement('span');
+    r.className = 'btn-ripple';
+    var rect = btn.getBoundingClientRect();
+    var sz = Math.max(rect.width, rect.height);
+    r.style.cssText = 'width:'+sz+'px;height:'+sz+'px;left:'+(e.clientX-rect.left-sz/2)+'px;top:'+(e.clientY-rect.top-sz/2)+'px;';
+    if (getComputedStyle(btn).position === 'static') btn.style.position = 'relative';
+    btn.style.overflow = 'hidden';
+    btn.appendChild(r);
+    r.addEventListener('animationend', function(){ r.remove(); });
+  });
+
+  /* 5. Пульс бейджей */
+  function updateBadgePulse(){
+    document.querySelectorAll('.unread-badge').forEach(function(b){
+      b.classList.toggle('has-unread', parseInt(b.textContent) > 0);
+    });
+  }
+
+  /* 6. Shake инпутов при ошибке */
+  document.querySelectorAll('form').forEach(function(form){
+    form.addEventListener('submit', function(){
+      form.querySelectorAll('.error,.invalid,[class*="error"]').forEach(function(el){
+        el.classList.remove('input-error-shake');
+        void el.offsetWidth;
+        el.classList.add('input-error-shake');
+      });
+    });
+  });
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ initReveal(); updateBadgePulse(); });
+  } else {
+    initReveal(); updateBadgePulse();
+  }
+})();
+</script>
+<!-- ══ END ANIMATIONS JS ══════════════════════════════════════════════════ -->
 
 <button id="deviceToggle" class="device-toggle">📱 Телефонный режим</button>
 <script>
