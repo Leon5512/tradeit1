@@ -1529,11 +1529,17 @@ def tracker_status(user_id):
 @app.route("/api/tracker/get_token", methods=["POST"])
 def get_token():
     try:
-        data = request.json
+        data = request.get_json(silent=True)
+
+        if not data:
+            return jsonify({"ok": False, "error": "no json"}), 400
+
         user_id = data.get("user_id")
 
         if not user_id:
-            return {"ok": False, "error": "no user_id"}, 400
+            return jsonify({"ok": False, "error": "no user_id"}), 400
+
+        db = get_db()
 
         user = db.execute(
             "SELECT tracker_token FROM users WHERE id=?",
@@ -1541,16 +1547,16 @@ def get_token():
         ).fetchone()
 
         if not user:
-            return {"ok": False, "error": "user not found"}, 404
+            return jsonify({"ok": False, "error": "user not found"}), 404
 
-        return {
+        return jsonify({
             "ok": True,
             "token": user["tracker_token"] or ""
-        }
+        })
 
     except Exception as e:
         print("ERROR:", e)
-        return {"ok": False, "error": str(e)}, 500
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
