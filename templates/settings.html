@@ -79,10 +79,15 @@ async function loadToken() {
     const userId = localStorage.getItem("user_id");
 
     const res = await fetch("/api/tracker/get_token", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ user_id: userId })
-    });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    user_id: USER_ID,
+    password: PASSWORD   // ← ВАЖНО
+  })
+})
 
     const data = await res.json();
 
