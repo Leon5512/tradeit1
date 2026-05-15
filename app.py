@@ -1528,21 +1528,6 @@ def tracker_status(user_id):
 
 @app.route("/api/tracker/get_token", methods=["POST"])
 def get_token():
-    data = request.json
-    user_id = data["user_id"]
-
-    user = db.execute(
-        "SELECT token FROM users WHERE id=?",
-        (user_id,)
-    ).fetchone()
-
-    if not user:
-        return {"ok": False}
-
-    return {"ok": True, "token": user["token"]}
-
-@app.route("/api/tracker/get_token", methods=["POST"])
-def get_token():
     try:
         data = request.json
         user_id = data.get("user_id")
