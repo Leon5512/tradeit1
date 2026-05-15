@@ -1442,6 +1442,89 @@ def api_msn_send_media(other_id):
         receiver_email = db.execute("SELECT email FROM users WHERE id=?", (receiver["user_id"],)).fetchone()
     return jsonify({"ok": True})
 
-# ── Запуск ────────────────────────────────────────────
+# ══════════════════════════════════════════════════════
+# ── GAME TRACKER API
+# Вставь этот блок в app.py (перед if __name__ == '__main__':)
+# ══════════════════════════════════════════════════════
+
+# Миграция колонок (вызывается автоматически через init_db в before_request)
+# Добавь эти строки в список migrations внутри init_db() в database.py:
+#   ("users", "current_game",    "TEXT DEFAULT ''"),
+#   ("users", "game_updated_at", "INTEGER DEFAULT 0"),
+#   ("users", "tracker_token",   "TEXT DEFAULT ''"),
+
+
+@app.route("/api/tracker/token", methods=["POST"])
+def tracker_get_token():
+    """
+    Генерирует или возвращает tracker_token для пользователя.
+    POST JSON: { "user_id": 1, "password": "..." }
+    Используется клиентским скриптом при первом запуске.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    user_id  = data.get("user_id")
+    password = data.get("password", "")
+
+    if not user_id or not password:
+        return jsonify({"ok": False, "msg": "Нужен user_id и password"}), 400
+
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user or not check_password_hash(user["password"], password):
+        return jsonify({"ok": False, "msg": "Неверные данные"}), 401
+
+    # Если токен уже есть — возвращаем его, иначе создаём
+    token = user["tracker_token"] if user["tracker_token"] else secrets.token_hex(32)
+    db.execute("UPDATE users SET tracker_token=? WHERE id=?", (token, user_id))
+    db.commit()
+    return jsonify({"ok": True, "token": token})
+
+
+@app.route("/api/tracker/update", methods=["POST"])
+def tracker_update_game():
+    """
+    Обновляет текущую игру пользователя.
+    Header: Authorization: Bearer <tracker_token>
+    POST JSON: { "game": "Counter-Strike 2" }  — или пустая строка если не в игре
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return jsonify({"ok": False, "msg": "Нет токена"}), 401
+    token = auth[7:].strip()
+
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE tracker_token=?", (token,)).fetchone()
+    if not user:
+        return jsonify({"ok": False, "msg": "Неверный токен"}), 401
+
+    data = request.get_json(force=True, silent=True) or {}
+    game = (data.get("game") or "").strip()[:100]
+
+    db.execute(
+        "UPDATE users SET current_game=?, game_updated_at=? WHERE id=?",
+        (game, int(time.time()), user["id"])
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tracker/status/<int:user_id>")
+def tracker_status(user_id):
+    """
+    Публичный эндпоинт: возвращает текущую игру пользователя.
+    GET /api/tracker/status/42
+    """
+    db = get_db()
+    user = db.execute(
+        "SELECT current_game, game_updated_at FROM users WHERE id=?", (user_id,)
+    ).fetchone()
+    if not user:
+        return jsonify({"ok": False, "msg": "Не найден"}), 404
+
+    # Если данные старше 5 минут — считаем что не в игре
+    stale = (int(time.time()) - (user["game_updated_at"] or 0)) > 300
+    game = "" if stale else (user["current_game"] or "")
+    return jsonify({"ok": True, "game": game})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
