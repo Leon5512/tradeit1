@@ -35,6 +35,7 @@ def init_db():
             current_game    TEXT    DEFAULT '',
             game_updated_at INTEGER DEFAULT 0,
             tracker_token   TEXT    DEFAULT ''
+            token TEXT
         );
         CREATE TABLE IF NOT EXISTS ads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
