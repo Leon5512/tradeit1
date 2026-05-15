@@ -44,6 +44,25 @@
         <textarea name="bio" placeholder="Расскажи о себе..." maxlength="300">{{ user.bio or '' }}</textarea>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;">Максимум 300 символов</div>
       </div>
+      <div class="form-group">
+  <label>🔑 Tracker Token</label>
+
+  <div style="display:flex;gap:8px;">
+    <input type="text" id="trackerToken" readonly
+      style="flex:1;padding:10px;border:2px solid var(--border);
+      border-radius:var(--radius);background:var(--bg);color:var(--text);font-family:monospace;">
+
+    <button type="button" onclick="copyToken()"
+      style="padding:10px 14px;border:none;border-radius:var(--radius);
+      background:#00aeef;color:white;font-weight:700;cursor:pointer;">
+      📋
+    </button>
+  </div>
+
+  <div id="tokenStatus" style="font-size:12px;margin-top:6px;color:var(--muted);">
+    Загружаем токен...
+  </div>
+</div>
       <hr style="border:none;border-top:2px solid var(--border);margin:20px 0;">
       <div class="form-group">
         <label>🔑 Новый пароль <span style="font-weight:400;color:var(--muted);">(оставь пустым чтобы не менять)</span></label>
