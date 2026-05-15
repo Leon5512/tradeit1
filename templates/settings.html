@@ -99,8 +99,8 @@ async function loadToken() {
 }
 
 loadToken();
-  <script>
-const USER_ID = {{ session["user_id"] }};
+<script>
+const USER_ID = {{ session["user_id"]|tojson }};
 </script>
     
     <!-- ── 2FA ─────────────────────────────────────── -->
