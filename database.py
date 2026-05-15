@@ -31,7 +31,10 @@ def init_db():
             verify_token TEXT    DEFAULT '',
             tfa_enabled  INTEGER DEFAULT 0,
             tfa_method   TEXT    DEFAULT '',
-            totp_secret  TEXT    DEFAULT ''
+            totp_secret  TEXT    DEFAULT '',
+            current_game    TEXT    DEFAULT '',
+            game_updated_at INTEGER DEFAULT 0,
+            tracker_token   TEXT    DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS ads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -215,6 +218,10 @@ def init_db():
         ("users", "tfa_enabled",                  "INTEGER DEFAULT 0"),
         ("users", "tfa_method",                   "TEXT DEFAULT ''"),
         ("users", "totp_secret",                  "TEXT DEFAULT ''"),
+        # ── Трекер игр ──
+        ("users", "current_game",                 "TEXT DEFAULT ''"),
+        ("users", "game_updated_at",              "INTEGER DEFAULT 0"),
+        ("users", "tracker_token",                "TEXT DEFAULT ''"),
         # ── Система поддержки ──
         ("support_tickets", "assigned_support_id","INTEGER DEFAULT NULL"),
         ("support_tickets", "status",             "TEXT DEFAULT 'open'"),
