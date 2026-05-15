@@ -1541,5 +1541,31 @@ def get_token():
 
     return {"ok": True, "token": user["token"]}
 
+@app.route("/api/tracker/get_token", methods=["POST"])
+def get_token():
+    try:
+        data = request.json
+        user_id = data.get("user_id")
+
+        if not user_id:
+            return {"ok": False, "error": "no user_id"}, 400
+
+        user = db.execute(
+            "SELECT tracker_token FROM users WHERE id=?",
+            (user_id,)
+        ).fetchone()
+
+        if not user:
+            return {"ok": False, "error": "user not found"}, 404
+
+        return {
+            "ok": True,
+            "token": user["tracker_token"] or ""
+        }
+
+    except Exception as e:
+        print("ERROR:", e)
+        return {"ok": False, "error": str(e)}, 500
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
