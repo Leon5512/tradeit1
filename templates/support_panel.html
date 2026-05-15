@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Панель поддержки{% endblock %}
+{% block content %}
+<style>
+.panel-wrap {
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.panel-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #111);
+  margin: 0;
+}
+.badge-support {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+.ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ticket-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 14px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow .15s;
+}
+.ticket-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+}
+.ticket-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+.ticket-avatar-placeholder {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent, #00aeef);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.ticket-info { flex: 1; min-width: 0; }
+.ticket-username { font-weight: 600; font-size: .97rem; }
+.ticket-meta { font-size: .82rem; color: #6b7280; margin-top: 2px; }
+.ticket-badge {
+  background: #ef4444;
+  color: #fff;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.assigned-badge {
+  background: #10b981;
+  color: #fff;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+  color: #6b7280;
+}
+.empty-state svg { margin-bottom: 16px; opacity: .35; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: .88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary { background: var(--accent, #00aeef); color: #fff; }
+.btn-primary:hover { opacity: .88; }
+</style>
+
+<div class="panel-wrap">
+  <div class="panel-header">
+    <h1>Панель поддержки</h1>
+    <span class="badge-support">{% if is_admin_user %}Администратор{% else %}Агент{% endif %}</span>
+    <a href="/support/panel" class="btn btn-primary" style="margin-left:auto">🔄 Обновить</a>
+  </div>
+
+  {% if open_users %}
+    <div class="ticket-list">
+      {% for u in open_users %}
+      <a class="ticket-card" href="/support/panel/{{ u.user_id }}">
+        {% if u.avatar %}
+          <img class="ticket-avatar" src="/static/uploads/{{ u.avatar }}" alt="">
+        {% else %}
+          <div class="ticket-avatar-placeholder">{{ u.username[0]|upper }}</div>
+        {% endif %}
+        <div class="ticket-info">
+          <div class="ticket-username">{{ u.username }}</div>
+          <div class="ticket-meta">
+            {% if u.assigned_support_id %}
+              {% for ag in agents %}
+                {% if ag.id == u.assigned_support_id %}
+                  Назначен: {{ ag.username }}
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              Не назначен
+            {% endif %}
+          </div>
+        </div>
+        {% if u.user_msgs and u.user_msgs > 0 %}
+          <span class="ticket-badge">{{ u.user_msgs }} новых</span>
+        {% elif u.assigned_support_id %}
+          <span class="assigned-badge">В работе</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <svg width="56" height="56" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <p>Нет открытых тикетов</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
