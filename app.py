@@ -1528,35 +1528,23 @@ def tracker_status(user_id):
 
 @app.route("/api/tracker/get_token", methods=["POST"])
 def get_token():
-    try:
-        data = request.get_json(silent=True)
+    if "user_id" not in session:
+        return jsonify({"ok": False}), 401
 
-        if not data:
-            return jsonify({"ok": False, "error": "no json"}), 400
+    db = get_db()
 
-        user_id = data.get("user_id")
+    user = db.execute(
+        "SELECT tracker_token FROM users WHERE id=?",
+        (session["user_id"],)
+    ).fetchone()
 
-        if not user_id:
-            return jsonify({"ok": False, "error": "no user_id"}), 400
+    if not user:
+        return jsonify({"ok": False}), 404
 
-        db = get_db()
-
-        user = db.execute(
-            "SELECT tracker_token FROM users WHERE id=?",
-            (user_id,)
-        ).fetchone()
-
-        if not user:
-            return jsonify({"ok": False, "error": "user not found"}), 404
-
-        return jsonify({
-            "ok": True,
-            "token": user["tracker_token"] or ""
-        })
-
-    except Exception as e:
-        print("ERROR:", e)
-        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({
+        "ok": True,
+        "token": user["tracker_token"] or ""
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
