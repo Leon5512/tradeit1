@@ -555,54 +555,301 @@ def chat(other_id):
     return render_template("chat.html", other=other)
 
 # ── Техподдержка ──────────────────────────────────────
+# ============================================================
+# ВСТАВЬ ЭТОТ БЛОК В app.py
+# Рекомендуем — после блока "── Техподдержка ──" (примерно строка 630)
+# и до блока "── Избранное ──"
+#
+# Также нужно добавить новый маршрут в секцию "── Админ панель ──":
+#   /admin/make_support/<int:user_id>   — назначить роль поддержки
+#   /admin/remove_support/<int:user_id> — снять роль поддержки
+#   /admin/assign_ticket/<int:ticket_user_id> — назначить тикет агенту
+# ============================================================
+
+# ──────────────────────────────────────────────────────────
+# ВСПОМОГАТЕЛЬНЫЙ ДЕКОРАТОР: только агент поддержки или админ
+# ──────────────────────────────────────────────────────────
+
+def require_support(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        db = get_db()
+        user = db.execute("SELECT is_support, is_admin FROM users WHERE id=?",
+                          (session["user_id"],)).fetchone()
+        if not user or (not user["is_support"] and not user["is_admin"]):
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+# ──────────────────────────────────────────────────────────
+# СТРАНИЦА ПОДДЕРЖКИ ДЛЯ ПОЛЬЗОВАТЕЛЯ  (заменяет старый /support)
+# ──────────────────────────────────────────────────────────
+
 @app.route("/support", methods=["GET", "POST"])
 def support():
-    if "user_id" not in session: return redirect(url_for("login"))
+    if "user_id" not in session:
+        return redirect(url_for("login"))
     uid = session["user_id"]
-    db = get_db()
+    db  = get_db()
+
     if request.method == "POST":
         text = request.form.get("text", "").strip()
         if text:
-            db.execute("INSERT INTO support_tickets (user_id, message, is_admin, created_at) VALUES (?,?,0,?)",
-                       (uid, text, int(time.time())))
+            # Если у пользователя нет открытого тикета — создать заявку
+            open_ticket = db.execute(
+                "SELECT id FROM support_tickets WHERE user_id=? AND status='open' AND is_admin=0 AND is_support_agent=0 LIMIT 1",
+                (uid,)
+            ).fetchone()
+            if not open_ticket:
+                db.execute(
+                    "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, status, created_at) VALUES (?,?,0,0,'open',?)",
+                    (uid, text, int(time.time()))
+                )
+            else:
+                db.execute(
+                    "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, assigned_support_id, status, created_at) VALUES (?,?,0,0,(SELECT assigned_support_id FROM support_tickets WHERE user_id=? AND assigned_support_id IS NOT NULL LIMIT 1),'open',?)",
+                    (uid, text, uid, int(time.time()))
+                )
             db.commit()
         return redirect(url_for("support"))
-    tickets = db.execute("SELECT * FROM support_tickets WHERE user_id=? ORDER BY created_at", (uid,)).fetchall()
+
+    tickets = db.execute(
+        "SELECT * FROM support_tickets WHERE user_id=? ORDER BY created_at",
+        (uid,)
+    ).fetchall()
     return render_template("support.html", tickets=tickets)
+
 
 @app.route("/api/support/send", methods=["POST"])
 def api_support_send():
-    if "user_id" not in session: return jsonify({"ok": False})
+    if "user_id" not in session:
+        return jsonify({"ok": False})
     data = request.get_json()
     text = (data.get("text") or "").strip()
-    if not text: return jsonify({"ok": False})
+    if not text:
+        return jsonify({"ok": False})
     uid = session["user_id"]
-    db = get_db()
-    db.execute("INSERT INTO support_tickets (user_id, message, is_admin, created_at) VALUES (?,?,0,?)",
-               (uid, text, int(time.time())))
+    db  = get_db()
+
+    # Определяем assigned_support_id из уже существующих сообщений
+    assigned = db.execute(
+        "SELECT assigned_support_id FROM support_tickets WHERE user_id=? AND assigned_support_id IS NOT NULL LIMIT 1",
+        (uid,)
+    ).fetchone()
+    assigned_id = assigned["assigned_support_id"] if assigned else None
+
+    db.execute(
+        "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, assigned_support_id, status, created_at) VALUES (?,?,0,0,?,'open',?)",
+        (uid, text, assigned_id, int(time.time()))
+    )
     db.commit()
-    history = db.execute("SELECT message, is_admin FROM support_tickets WHERE user_id=? ORDER BY created_at DESC LIMIT 10", (uid,)).fetchall()
+
+    # История для AI
+    history = db.execute(
+        "SELECT message, is_admin, is_support_agent FROM support_tickets WHERE user_id=? ORDER BY created_at DESC LIMIT 10",
+        (uid,)
+    ).fetchall()
     history = list(reversed(history))
+
     messages_for_ai = []
     for h in history:
-        role = "assistant" if h["is_admin"] else "user"
+        role = "assistant" if (h["is_admin"] or h["is_support_agent"]) else "user"
         messages_for_ai.append({"role": role, "content": h["message"]})
-    try:
-        resp = http_requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"},
-            json={"model": "meta-llama/llama-3.1-8b-instruct:free", "messages": [
-                {"role": "system", "content": "Ты техподдержка сайта TradeIt — это маркетплейс для продажи товаров. Помогай пользователям с вопросами о сайте: как разместить объявление, как написать продавцу, как редактировать профиль и т.д. Отвечай кратко, дружелюбно, на русском языке."}
-            ] + messages_for_ai}, timeout=15
+
+    # Если нет назначенного агента — отвечает AI
+    if not assigned_id:
+        try:
+            resp = http_requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"
+                },
+                json={
+                    "model": "meta-llama/llama-3.1-8b-instruct:free",
+                    "messages": [
+                        {"role": "system", "content": "Ты техподдержка сайта TradeIt — это маркетплейс для продажи товаров. Помогай пользователям с вопросами о сайте: как разместить объявление, как написать продавцу, как редактировать профиль и т.д. Отвечай кратко, дружелюбно, на русском языке."}
+                    ] + messages_for_ai
+                },
+                timeout=15
+            )
+            ai_text = resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            print("SUPPORT AI ERROR:", str(e))
+            ai_text = "Ваш запрос принят. Скоро ответят."
+
+        db.execute(
+            "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, status, created_at) VALUES (?,?,1,0,'open',?)",
+            (uid, ai_text, int(time.time()))
         )
-        ai_text = resp.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        print("SUPPORT ERROR:", str(e))
-        ai_text = "Скоро ответят"
-    db.execute("INSERT INTO support_tickets (user_id, message, is_admin, created_at) VALUES (?,?,1,?)",
-               (uid, ai_text, int(time.time())))
+        db.commit()
+        return jsonify({"ok": True, "reply": ai_text})
+
+    # Если есть агент — уведомляем его (push) и просто подтверждаем
+    agent = db.execute("SELECT id FROM users WHERE id=?", (assigned_id,)).fetchone()
+    if agent:
+        user_row = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+        uname = user_row["username"] if user_row else "Пользователь"
+        send_push_to_user(
+            db, assigned_id,
+            title=f"💬 Новое сообщение от {uname}",
+            body=text[:80],
+            url="/support/panel",
+            tag="support"
+        )
+    return jsonify({"ok": True, "reply": None})
+
+
+# ──────────────────────────────────────────────────────────
+# ПАНЕЛЬ АГЕНТА ПОДДЕРЖКИ
+# ──────────────────────────────────────────────────────────
+
+@app.route("/support/panel")
+@require_support
+def support_panel():
+    uid = session["user_id"]
+    db  = get_db()
+    user = db.execute("SELECT is_admin FROM users WHERE id=?", (uid,)).fetchone()
+    is_admin_user = bool(user["is_admin"]) if user else False
+
+    if is_admin_user:
+        # Администратор видит все тикеты
+        open_users = db.execute("""
+            SELECT DISTINCT st.user_id, u.username, u.avatar,
+                   MAX(st.created_at) as last_msg,
+                   st.assigned_support_id,
+                   SUM(CASE WHEN st.is_admin=0 AND st.is_support_agent=0 THEN 1 ELSE 0 END) as user_msgs
+            FROM support_tickets st
+            JOIN users u ON st.user_id = u.id
+            WHERE st.status = 'open'
+            GROUP BY st.user_id
+            ORDER BY last_msg DESC
+        """).fetchall()
+    else:
+        # Агент видит только назначенные ему тикеты
+        open_users = db.execute("""
+            SELECT DISTINCT st.user_id, u.username, u.avatar,
+                   MAX(st.created_at) as last_msg,
+                   st.assigned_support_id,
+                   SUM(CASE WHEN st.is_admin=0 AND st.is_support_agent=0 THEN 1 ELSE 0 END) as user_msgs
+            FROM support_tickets st
+            JOIN users u ON st.user_id = u.id
+            WHERE st.status = 'open' AND st.assigned_support_id = ?
+            GROUP BY st.user_id
+            ORDER BY last_msg DESC
+        """, (uid,)).fetchall()
+
+    agents = db.execute(
+        "SELECT id, username FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
+    ).fetchall()
+
+    return render_template("support_panel.html",
+                           open_users=open_users,
+                           agents=agents,
+                           is_admin_user=is_admin_user)
+
+
+@app.route("/support/panel/<int:user_id>", methods=["GET", "POST"])
+@require_support
+def support_panel_chat(user_id):
+    uid = session["user_id"]
+    db  = get_db()
+
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
+        if text:
+            db.execute(
+                "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, assigned_support_id, status, created_at) VALUES (?,?,0,1,?,'open',?)",
+                (user_id, text, uid, int(time.time()))
+            )
+            # Также помечаем все сообщения пользователя как назначенные этому агенту
+            db.execute(
+                "UPDATE support_tickets SET assigned_support_id=? WHERE user_id=? AND assigned_support_id IS NULL",
+                (uid, user_id)
+            )
+            db.commit()
+            # Push пользователю
+            agent_name = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+            aname = agent_name["username"] if agent_name else "Поддержка"
+            send_push_to_user(
+                db, user_id,
+                title=f"💬 Ответ от поддержки",
+                body=text[:80],
+                url="/support",
+                tag="support"
+            )
+        return redirect(url_for("support_panel_chat", user_id=user_id))
+
+    tickets = db.execute(
+        "SELECT st.*, u.username as agent_name FROM support_tickets st LEFT JOIN users u ON st.assigned_support_id = u.id WHERE st.user_id=? ORDER BY st.created_at",
+        (user_id,)
+    ).fetchall()
+    target_user = db.execute("SELECT id, username, avatar FROM users WHERE id=?", (user_id,)).fetchone()
+    agents = db.execute(
+        "SELECT id, username FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
+    ).fetchall()
+
+    return render_template("support_panel_chat.html",
+                           tickets=tickets,
+                           target_user=target_user,
+                           agents=agents,
+                           current_agent_id=uid)
+
+
+@app.route("/support/panel/close/<int:user_id>")
+@require_support
+def support_close_ticket(user_id):
+    db = get_db()
+    db.execute("UPDATE support_tickets SET status='closed' WHERE user_id=?", (user_id,))
     db.commit()
-    return jsonify({"ok": True, "reply": ai_text})
+    flash("Тикет закрыт", "success")
+    return redirect(url_for("support_panel"))
+
+
+@app.route("/support/panel/assign/<int:user_id>", methods=["POST"])
+@require_support
+def support_assign(user_id):
+    agent_id = request.form.get("agent_id", type=int)
+    if not agent_id:
+        flash("Выбери агента", "error")
+        return redirect(url_for("support_panel_chat", user_id=user_id))
+    db = get_db()
+    db.execute(
+        "UPDATE support_tickets SET assigned_support_id=? WHERE user_id=?",
+        (agent_id, user_id)
+    )
+    db.commit()
+    flash("Тикет назначен", "success")
+    return redirect(url_for("support_panel_chat", user_id=user_id))
+
+
+# ──────────────────────────────────────────────────────────
+# ADMIN: назначение / снятие роли поддержки
+# ──────────────────────────────────────────────────────────
+
+@app.route("/admin/make_support/<int:user_id>")
+def admin_make_support(user_id):
+    if not session.get("is_admin") or not session.get("admin_unlocked"):
+        abort(403)
+    db = get_db()
+    db.execute("UPDATE users SET is_support=1 WHERE id=?", (user_id,))
+    db.commit()
+    flash("Роль поддержки назначена", "success")
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/remove_support/<int:user_id>")
+def admin_remove_support(user_id):
+    if not session.get("is_admin") or not session.get("admin_unlocked"):
+        abort(403)
+    db = get_db()
+    db.execute("UPDATE users SET is_support=0 WHERE id=?", (user_id,))
+    db.commit()
+    flash("Роль поддержки снята", "success")
+    return redirect(url_for("admin"))
 
 # ── Избранное ─────────────────────────────────────────
 @app.route("/favorites")
