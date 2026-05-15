@@ -1,93 +1,178 @@
 {% extends "base.html" %}
-{% block title %}Техподдержка{% endblock %}
+{% block title %}Поддержка{% endblock %}
 {% block content %}
-<div class="container" style="max-width:700px;">
-  <div style="display:flex;align-items:center;gap:12px;padding:12px 0;margin-bottom:4px;">
-    <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#00aeef,#ff6a00);display:flex;align-items:center;justify-content:center;font-size:20px;">🤖</div>
-    <div>
-      <div style="font-weight:800;font-size:16px;">Техподдержка TradIt</div>
-      <div style="font-size:12px;color:var(--muted);">ассистент • Обычно отвечает мгновенно</div>
-    </div>
+<style>
+.support-wrap {
+  max-width: 680px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.support-header { margin-bottom: 20px; }
+.support-header h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 4px; }
+.support-header p  { color: #6b7280; font-size: .9rem; margin: 0; }
+
+.msg-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+.msg-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: .9rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.msg-user    { background: var(--accent, #00aeef); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.msg-support { background: #f3f4f6; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg-ai      { background: #e0f2fe; color: #0369a1; align-self: flex-start; border-bottom-left-radius: 4px; font-style: italic; }
+.msg-meta    { font-size: .72rem; opacity: .55; margin-top: 3px; }
+
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+#msgInput {
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: .93rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 48px;
+}
+#msgInput:focus { outline: none; border-color: var(--accent, #00aeef); }
+#sendBtn {
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--accent, #00aeef);
+  color: #fff;
+  font-weight: 700;
+  font-size: .9rem;
+  border: none;
+  cursor: pointer;
+}
+#sendBtn:disabled { opacity: .5; cursor: default; }
+
+.status-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 600;
+  margin-left: 8px;
+}
+.status-open   { background: #dcfce7; color: #16a34a; }
+.status-closed { background: #fee2e2; color: #dc2626; }
+</style>
+
+<div class="support-wrap">
+  <div class="support-header">
+    <h1>
+      Поддержка
+      {% if tickets %}
+        {% if tickets[-1].status == 'closed' %}
+          <span class="status-tag status-closed">Закрыт</span>
+        {% else %}
+          <span class="status-tag status-open">Открыт</span>
+        {% endif %}
+      {% endif %}
+    </h1>
+    <p>Опиши свою проблему — мы поможем как можно скорее.</p>
   </div>
 
-  <div class="card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 180px);">
-    <div id="support-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;">
-      <div style="align-self:flex-start;max-width:75%;">
-        <div class="msg theirs">
-          👋 Привет! Я ассистент техподдержки TradeIt. Помогу разобраться с сайтом. Задай любой вопрос!
-          <div class="msg-time">Сейчас</div>
-        </div>
+  <div class="msg-history" id="msgHistory">
+    {% if not tickets %}
+      <div style="text-align:center; color:#9ca3af; padding:40px 0; font-size:.9rem;">
+        Напиши первое сообщение — начнём диалог 👋
       </div>
-      {% for t in tickets %}
-      <div style="align-self:{% if t.is_admin %}flex-start{% else %}flex-end{% endif %};">
-        <div class="msg {% if t.is_admin %}theirs{% else %}mine{% endif %}">
-          {{ t.message }}
-          <div class="msg-time">{% set h=(t.created_at%86400//3600+3)%24 %}{% set m=t.created_at%3600//60 %}{{ "%02d:%02d"|format(h,m) }}</div>
+    {% endif %}
+    {% for t in tickets %}
+      {% if not t.is_admin and not t.is_support_agent %}
+        <div style="align-self:flex-end; display:flex; flex-direction:column; align-items:flex-end">
+          <div class="msg-bubble msg-user">{{ t.message }}</div>
+          <div class="msg-meta">Вы · {{ t.created_at | datetimeformat }}</div>
         </div>
-      </div>
-      {% endfor %}
-      <div id="typing-indicator" style="display:none;align-self:flex-start;">
-        <div class="msg theirs" style="padding:10px 16px;">
-          <span style="display:inline-flex;gap:4px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);animation:bounce 1s infinite;"></span>
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);animation:bounce 1s infinite .2s;"></span>
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);animation:bounce 1s infinite .4s;"></span>
-          </span>
+      {% elif t.is_support_agent %}
+        <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
+          <div class="msg-bubble msg-support">{{ t.message }}</div>
+          <div class="msg-meta">Поддержка · {{ t.created_at | datetimeformat }}</div>
         </div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;padding:12px;background:var(--card);border-top:2px solid var(--border);">
-      <input type="text" id="support-input" placeholder="Напиши свой вопрос..." style="flex:1;" autocomplete="off">
-      <button onclick="sendSupport()" class="btn btn-primary">Отправить</button>
-    </div>
+      {% else %}
+        <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
+          <div class="msg-bubble msg-ai">🤖 {{ t.message }}</div>
+          <div class="msg-meta">AI-бот · {{ t.created_at | datetimeformat }}</div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="input-row">
+    <textarea id="msgInput" placeholder="Введи сообщение..." rows="2"></textarea>
+    <button id="sendBtn">Отправить</button>
   </div>
 </div>
 
-<style>
-@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-</style>
-
 <script>
-const msgs = document.getElementById('support-msgs');
-const input = document.getElementById('support-input');
-const typing = document.getElementById('typing-indicator');
-msgs.scrollTop = msgs.scrollHeight;
-input.focus();
+const history = document.getElementById('msgHistory');
+const input   = document.getElementById('msgInput');
+const btn     = document.getElementById('sendBtn');
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter') sendSupport(); });
+function scrollDown() {
+  if (history) history.scrollTop = history.scrollHeight;
+}
+scrollDown();
 
-function addMsg(text, isMine) {
-  const now = new Date();
-  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  const div = document.createElement('div');
-  div.style.alignSelf = isMine ? 'flex-end' : 'flex-start';
-  div.innerHTML = `<div class="msg ${isMine ? 'mine' : 'theirs'}">${text.replace(/</g,'&lt;')}<div class="msg-time">${time}</div></div>`;
-  msgs.insertBefore(div, typing);
-  msgs.scrollTop = msgs.scrollHeight;
+function addBubble(text, who, ts) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `align-self:${who==='user'?'flex-end':'flex-start'};display:flex;flex-direction:column;align-items:${who==='user'?'flex-end':'flex-start'}`;
+  const cls = who === 'user' ? 'msg-user' : (who === 'ai' ? 'msg-ai' : 'msg-support');
+  const label = who === 'user' ? 'Вы' : (who === 'ai' ? '🤖 AI-бот' : 'Поддержка');
+  wrap.innerHTML = `<div class="msg-bubble ${cls}">${text}</div><div class="msg-meta">${label} · только что</div>`;
+  history.appendChild(wrap);
+  scrollDown();
 }
 
-function sendSupport() {
+btn.addEventListener('click', async () => {
   const text = input.value.trim();
   if (!text) return;
+  btn.disabled = true;
+  addBubble(text, 'user');
   input.value = '';
-  addMsg(text, true);
-  typing.style.display = 'flex';
-  msgs.scrollTop = msgs.scrollHeight;
 
-  fetch('/api/support/send', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text})
-  })
-  .then(r => r.json())
-  .then(d => {
-    typing.style.display = 'none';
-    if (d.ok) addMsg(d.reply, false);
-  })
-  .catch(() => {
-    typing.style.display = 'none';
-    addMsg('Ошибка. Попробуй ещё раз.', false);
-  });
-}
+  try {
+    const res  = await fetch('/api/support/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text})
+    });
+    const data = await res.json();
+    if (data.ok && data.reply) {
+      addBubble(data.reply, 'ai');
+    } else if (data.ok) {
+      addBubble('✅ Сообщение получено. Ожидайте ответа от агента.', 'support');
+    }
+  } catch(e) {
+    addBubble('Ошибка отправки. Попробуй ещё раз.', 'ai');
+  }
+  btn.disabled = false;
+  input.focus();
+});
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    btn.click();
+  }
+});
 </script>
 {% endblock %}
