@@ -1526,5 +1526,20 @@ def tracker_status(user_id):
     game = "" if stale else (user["current_game"] or "")
     return jsonify({"ok": True, "game": game})
 
+@app.route("/api/tracker/get_token", methods=["POST"])
+def get_token():
+    data = request.json
+    user_id = data["user_id"]
+
+    user = db.execute(
+        "SELECT token FROM users WHERE id=?",
+        (user_id,)
+    ).fetchone()
+
+    if not user:
+        return {"ok": False}
+
+    return {"ok": True, "token": user["token"]}
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
