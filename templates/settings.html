@@ -55,24 +55,26 @@
     </form>
 
     <!-- Секция в настройках профиля -->
-<div class="settings-section">
-    <h3>Интеграция с Game Tracker</h3>
-    <p>Используйте этот токен в файле <code>config.json</code> вашего трекера.</p>
-    
-    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-        <input type="text" id="trackerToken" value="ВАШ_ТОКЕН_ИЗ_БАЗЫ" readonly 
-               style="padding: 8px; width: 300px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">
-        <button onclick="copyToken()" style="padding: 8px 15px; cursor: pointer;">Копировать</button>
-    </div>
-</div>
-
 <script>
-function copyToken() {
-    var copyText = document.getElementById("trackerToken");
-    copyText.select();
-    navigator.clipboard.writeText(copyText.value);
-    alert("Токен скопирован! Вставьте его в config.json трекера.");
+async function loadToken() {
+    const userId = localStorage.getItem("user_id");
+
+    const res = await fetch("/api/tracker/get_token", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ user_id: userId })
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+        document.getElementById("trackerToken").value = data.token;
+    } else {
+        document.getElementById("trackerToken").value = "Ошибка загрузки";
+    }
 }
+
+loadToken();
 </script>
     
     <!-- ── 2FA ─────────────────────────────────────── -->
