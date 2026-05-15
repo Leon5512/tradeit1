@@ -201,20 +201,24 @@ def init_db():
 
     # Миграции — идемпотентно добавляем колонки если их ещё нет
     migrations = [
-        ("users", "bio",         "TEXT DEFAULT ''"),
-        ("users", "city",        "TEXT DEFAULT ''"),
-        ("users", "accent_color","TEXT DEFAULT '#00aeef'"),
-        ("users", "is_admin",    "INTEGER DEFAULT 0"),
-        ("users", "is_banned",   "INTEGER DEFAULT 0"),
-        ("users", "avatar",      "TEXT DEFAULT ''"),
-        ("users", "balance",     "REAL DEFAULT 0"),
-        ("users", "is_support",  "INTEGER DEFAULT 0"),
-        ("users", "is_verified", "INTEGER DEFAULT 0"),
-        ("users", "verify_token","TEXT DEFAULT ''"),
+        ("users", "bio",                          "TEXT DEFAULT ''"),
+        ("users", "city",                         "TEXT DEFAULT ''"),
+        ("users", "accent_color",                 "TEXT DEFAULT '#00aeef'"),
+        ("users", "is_admin",                     "INTEGER DEFAULT 0"),
+        ("users", "is_banned",                    "INTEGER DEFAULT 0"),
+        ("users", "avatar",                       "TEXT DEFAULT ''"),
+        ("users", "balance",                      "REAL DEFAULT 0"),
+        ("users", "is_support",                   "INTEGER DEFAULT 0"),
+        ("users", "is_verified",                  "INTEGER DEFAULT 0"),
+        ("users", "verify_token",                 "TEXT DEFAULT ''"),
         # ── 2FA ──
-        ("users", "tfa_enabled", "INTEGER DEFAULT 0"),
-        ("users", "tfa_method",  "TEXT DEFAULT ''"),
-        ("users", "totp_secret", "TEXT DEFAULT ''"),
+        ("users", "tfa_enabled",                  "INTEGER DEFAULT 0"),
+        ("users", "tfa_method",                   "TEXT DEFAULT ''"),
+        ("users", "totp_secret",                  "TEXT DEFAULT ''"),
+        # ── Система поддержки ──
+        ("support_tickets", "assigned_support_id","INTEGER DEFAULT NULL"),
+        ("support_tickets", "status",             "TEXT DEFAULT 'open'"),
+        ("support_tickets", "is_support_agent",   "INTEGER DEFAULT 0"),
     ]
     for table, col, col_def in migrations:
         try:
