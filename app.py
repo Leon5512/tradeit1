@@ -1564,9 +1564,15 @@ def get_token():
     if not user:
         return jsonify({"ok": False}), 404
 
+    token = user["tracker_token"]
+    if not token:
+        token = secrets.token_hex(32)
+        db.execute("UPDATE users SET tracker_token=? WHERE id=?", (token, session["user_id"]))
+        db.commit()
+
     return jsonify({
         "ok": True,
-        "token": user["tracker_token"] or ""
+        "token": token
     })
 
 if __name__ == "__main__":
