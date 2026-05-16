@@ -436,6 +436,38 @@ nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
 </footer>
 
 <script>
+// ── Безопасный fetch: не падает если сервер вернул HTML вместо JSON ──
+async function safeJson(response) {
+  const ct = response.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    console.warn('[TradeIt] Ожидался JSON, получен:', ct, 'URL:', response.url, 'Статус:', response.status);
+    return { ok: false, error: 'server_error', status: response.status };
+  }
+  try { return await response.json(); } catch(e) { return { ok: false, error: 'parse_error' }; }
+}
+// Патчим все fetch вызовы — перехватываем HTML-ответы
+(function() {
+  const _fetch = window.fetch;
+  window.fetch = function(url, opts) {
+    return _fetch(url, opts).then(function(resp) {
+      // Клонируем чтобы не сломать оригинальный поток
+      const origJson = resp.json.bind(resp);
+      resp.json = function() {
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          console.warn('[TradeIt] fetch(' + url + ') вернул не-JSON (' + resp.status + '). Возвращаем {ok:false}.');
+          return Promise.resolve({ ok: false, error: 'not_json', status: resp.status });
+        }
+        return origJson().catch(function(e) {
+          console.warn('[TradeIt] JSON.parse ошибка:', e);
+          return { ok: false, error: 'parse_error' };
+        });
+      };
+      return resp;
+    });
+  };
+})();
+
 setTimeout(() => document.querySelectorAll('.flash').forEach(e => e.remove()), 3000);
 
 const searchInputs = document.querySelectorAll('.nav-search input, .mobile-search input');
