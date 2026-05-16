@@ -1038,11 +1038,34 @@ def api_announcements():
     rows = db.execute("SELECT * FROM announcements ORDER BY created_at DESC LIMIT 5").fetchall()
     return jsonify({"items": [dict(r) for r in rows]})
 
+@app.route("/login/2fa/resend", methods=["POST"])
+def login_2fa_resend():
+    """Заглушка повторной отправки кода — email 2FA отключена, возвращает ошибку."""
+    return jsonify({"ok": False, "msg": "Email 2FA не поддерживается. Используй приложение-аутентификатор."})
+
 @app.errorhandler(403)
-def forbidden(e): return render_template("error.html", code=403, msg="Доступ запрещён"), 403
+def forbidden(e):
+    if request.is_json or request.path.startswith("/api/") or request.path.startswith("/sw.js"):
+        return jsonify({"error": "Доступ запрещён"}), 403
+    return render_template("error.html", code=403, msg="Доступ запрещён"), 403
 
 @app.errorhandler(404)
-def not_found(e): return render_template("error.html", code=404, msg="Страница не найдена"), 404
+def not_found(e):
+    if request.is_json or request.path.startswith("/api/") or request.path.startswith("/sw.js"):
+        return jsonify({"error": "Не найдено"}), 404
+    return render_template("error.html", code=404, msg="Страница не найдена"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    if request.is_json or request.path.startswith("/api/"):
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+    return render_template("error.html", code=500, msg="Внутренняя ошибка сервера"), 500
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    if request.is_json or request.path.startswith("/api/"):
+        return jsonify({"error": "Слишком много запросов"}), 429
+    return render_template("error.html", code=429, msg="Слишком много запросов. Подожди немного."), 429
 
 # ══════════════════════════════════════════════════════
 # ── МЕССЕНДЖЕР
