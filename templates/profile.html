@@ -13,6 +13,9 @@
     <div>
       <h1 style="font-size:22px;font-weight:800;">{{ user.username }}</h1>
       {% if user.city %}<p style="color:var(--muted);font-size:13px;">📍 {{ user.city }}</p>{% endif %}
+      {% if user.current_game %}
+<p style="font-size:13px;margin-top:2px;">🎮 Играет в <b>{{ user.current_game }}</b></p>
+{% endif %}
       {% if user.bio %}<p style="font-size:14px;margin-top:4px;">{{ user.bio }}</p>{% endif %}
       <p style="color:var(--muted);font-size:13px;margin-top:4px;">{{ ads|length }} объявлений</p>
     </div>
