@@ -7,8 +7,8 @@ self.addEventListener('push', function(event) {
   const data = event.data.json();
   const options = {
     body: data.body || '',
-    icon: data.icon || '/static/icon-192.png',
-    badge: data.badge || '/static/icon-96.png',
+    icon: data.icon || '',
+    badge: data.badge || '',
     tag: data.tag || 'tradeit-notification',
     renotify: true,
     data: { url: data.url || '/' },
