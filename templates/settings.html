@@ -75,32 +75,27 @@
 
     <!-- Секция в настройках профиля -->
 <script>
+const USER_ID = {{ session["user_id"]|tojson }};
+
 async function loadToken() {
-    const userId = localStorage.getItem("user_id");
-
-    const res = await fetch("/api/tracker/get_token", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    user_id: USER_ID,
-    password: PASSWORD   // ← ВАЖНО
-  })
-})
-
-    const data = await res.json();
-
-    if (data.ok) {
-        document.getElementById("trackerToken").value = data.token;
-    } else {
+    try {
+        const res = await fetch("/api/tracker/get_token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        const ct = res.headers.get("content-type") || "";
+        const data = ct.includes("application/json") ? await res.json() : { ok: false };
+        if (data.ok) {
+            document.getElementById("trackerToken").value = data.token;
+        } else {
+            document.getElementById("trackerToken").value = "Ошибка загрузки";
+        }
+    } catch(e) {
         document.getElementById("trackerToken").value = "Ошибка загрузки";
     }
 }
 
 loadToken();
-<script>
-const USER_ID = {{ session["user_id"]|tojson }};
 </script>
     
     <!-- ── 2FA ─────────────────────────────────────── -->
