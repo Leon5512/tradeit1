@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Тикеты поддержки — Админка{% endblock %}
+
+{% block content %}
+<style>
+.wrap  { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+h1     { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat  { background: var(--card-bg,#fff); border-radius: 12px; padding: 14px 16px; border: 1.5px solid var(--border,#eee); text-align: center; }
+.stat-n { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.stat-l { font-size: 0.8rem; color: #888; margin-top: 4px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.filter-btn { padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border,#ddd); background: var(--card-bg,#fff); color: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all .16s; }
+.filter-btn.active, .filter-btn:hover { background: var(--accent,#00aeef); color: #fff; border-color: var(--accent,#00aeef); }
+table  { width: 100%; border-collapse: collapse; }
+th     { text-align: left; font-size: 0.8rem; color: #888; font-weight: 600; padding: 8px 10px; border-bottom: 1.5px solid var(--border,#eee); }
+td     { padding: 10px 10px; border-bottom: 1px solid var(--border,#f0f0f0); font-size: 0.88rem; vertical-align: middle; }
+tr:hover td { background: rgba(0,174,239,.04); }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.badge-open        { background: #fff4e0; color: #d08000; }
+.badge-in_progress { background: #e0f0ff; color: #0066cc; }
+.badge-resolved    { background: #e0ffe8; color: #008a3e; }
+.badge-closed      { background: #f0f0f0; color: #666; }
+.badge-high        { background: #ffe0e0; color: #c0000a; }
+.badge-normal      { background: #fff9e0; color: #996600; }
+.badge-low         { background: #f0fff0; color: #006600; }
+a.ticket-link { color: var(--accent,#00aeef); text-decoration: none; font-weight: 600; }
+a.ticket-link:hover { text-decoration: underline; }
+.avg-rating { display: inline-flex; align-items: center; gap: 6px; background: #fff9e0; color: #996600; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; margin-bottom: 18px; }
+
+@media (prefers-color-scheme: dark) {
+  .stat { background: #1e2530; border-color: #2e3540; }
+  table th { border-bottom-color: #2e3540; }
+  table td { border-bottom-color: #252e3c; }
+  .badge-open        { background: #3a2e00; color: #ffd060; }
+  .badge-in_progress { background: #00264a; color: #80c0ff; }
+  .badge-resolved    { background: #002a10; color: #60d080; }
+  .badge-closed      { background: #2a2a2a; color: #aaa; }
+  .avg-rating { background: #3a2e00; color: #ffd060; }
+}
+@media (max-width: 640px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .hide-mob { display: none; }
+}
+</style>
+
+<div class="wrap">
+  <h1>🎧 Тикеты поддержки</h1>
+
+  <!-- Статистика -->
+  <div class="stats">
+    <div class="stat"><div class="stat-n" style="color:#d08000">{{ stats.open }}</div><div class="stat-l">🟠 Открыто</div></div>
+    <div class="stat"><div class="stat-n" style="color:#0066cc">{{ stats.in_progress }}</div><div class="stat-l">🔵 В работе</div></div>
+    <div class="stat"><div class="stat-n" style="color:#008a3e">{{ stats.resolved }}</div><div class="stat-l">🟢 Решено</div></div>
+    <div class="stat"><div class="stat-n" style="color:#666">{{ stats.closed }}</div><div class="stat-l">⚫ Закрыто</div></div>
+  </div>
+
+  {% if avg_rating %}
+  <div class="avg-rating">⭐ Средняя оценка поддержки: {{ avg_rating }} / 5</div>
+  {% endif %}
+
+  <!-- Фильтры -->
+  <div class="filters">
+    <a href="{{ url_for('admin_support') }}"                         class="filter-btn {% if not current_status %}active{% endif %}">Все</a>
+    <a href="{{ url_for('admin_support', status='open') }}"          class="filter-btn {% if current_status=='open' %}active{% endif %}">🟠 Открытые</a>
+    <a href="{{ url_for('admin_support', status='in_progress') }}"   class="filter-btn {% if current_status=='in_progress' %}active{% endif %}">🔵 В работе</a>
+    <a href="{{ url_for('admin_support', status='resolved') }}"      class="filter-btn {% if current_status=='resolved' %}active{% endif %}">🟢 Решённые</a>
+    <a href="{{ url_for('admin_support', status='closed') }}"        class="filter-btn {% if current_status=='closed' %}active{% endif %}">⚫ Закрытые</a>
+  </div>
+
+  <!-- Таблица тикетов -->
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Тема</th>
+        <th>Пользователь</th>
+        <th class="hide-mob">Категория</th>
+        <th>Приоритет</th>
+        <th>Статус</th>
+        <th>Обновлён</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr>
+        <td style="color:#aaa;font-size:0.8rem;">{{ t.id }}</td>
+        <td><a class="ticket-link" href="{{ url_for('support_chat', ticket_id=t.id) }}">{{ t.title[:50] }}{% if t.title|length > 50 %}…{% endif %}</a></td>
+        <td><a class="ticket-link" href="{{ url_for('profile', username=t.username) }}">{{ t.username }}</a></td>
+        <td class="hide-mob" style="font-size:0.8rem;">{{ categories[t.category] }}</td>
+        <td><span class="badge badge-{{ t.priority }}">{{ priorities[t.priority][0] }} {{ priorities[t.priority][1] }}</span></td>
+        <td><span class="badge badge-{{ t.status }}">{{ statuses[t.status][0] }} {{ statuses[t.status][1] }}</span></td>
+        <td style="font-size:0.8rem;color:#888;white-space:nowrap;">{{ t.updated_at | datetimeformat }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:30px;color:#aaa;">Тикетов нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

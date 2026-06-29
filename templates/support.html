@@ -1,178 +1,80 @@
 {% extends "base.html" %}
-{% block title %}Поддержка{% endblock %}
+{% block title %}Поддержка — TradeIt{% endblock %}
+
 {% block content %}
 <style>
-.support-wrap {
-  max-width: 680px;
-  margin: 32px auto;
-  padding: 0 16px;
-}
-.support-header { margin-bottom: 20px; }
-.support-header h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 4px; }
-.support-header p  { color: #6b7280; font-size: .9rem; margin: 0; }
+.support-wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+.support-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.support-header h1 { font-size: 1.6rem; font-weight: 700; margin: 0; }
+.btn-new { background: var(--accent, #00aeef); color: #fff; border: none; border-radius: 10px; padding: 10px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; transition: opacity .18s; }
+.btn-new:hover { opacity: .85; }
+.ticket-list { display: flex; flex-direction: column; gap: 12px; }
+.ticket-card { background: var(--card-bg, #fff); border-radius: 14px; padding: 16px 20px; text-decoration: none; color: inherit; display: flex; align-items: center; gap: 14px; border: 1.5px solid var(--border, #e8e8e8); transition: box-shadow .18s, border-color .18s; position: relative; }
+.ticket-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.09); border-color: var(--accent, #00aeef); }
+.ticket-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+.ticket-icon.open        { background: #fff4e0; }
+.ticket-icon.in_progress { background: #e0f0ff; }
+.ticket-icon.resolved    { background: #e0ffe8; }
+.ticket-icon.closed      { background: #f0f0f0; }
+.ticket-info { flex: 1; min-width: 0; }
+.ticket-title { font-weight: 600; font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-meta  { font-size: 0.82rem; color: #888; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-open        { background: #fff4e0; color: #d08000; }
+.badge-in_progress { background: #e0f0ff; color: #0066cc; }
+.badge-resolved    { background: #e0ffe8; color: #008a3e; }
+.badge-closed      { background: #f0f0f0; color: #666; }
+.badge-high        { background: #ffe0e0; color: #c0000a; }
+.badge-normal      { background: #fff9e0; color: #996600; }
+.badge-low         { background: #f0fff0; color: #006600; }
+.unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent, #00aeef); flex-shrink: 0; }
+.empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+.empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+.empty-state p { margin: 0 0 20px; }
 
-.msg-history {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 460px;
-  overflow-y: auto;
-  padding: 16px;
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 14px;
-  margin-bottom: 14px;
+@media (prefers-color-scheme: dark) {
+  .ticket-card { background: #1e2530; border-color: #2e3540; }
+  .ticket-icon.open        { background: #3a2e00; }
+  .ticket-icon.in_progress { background: #00264a; }
+  .ticket-icon.resolved    { background: #002a10; }
+  .ticket-icon.closed      { background: #2a2a2a; }
 }
-.msg-bubble {
-  max-width: 75%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: .9rem;
-  line-height: 1.5;
-  word-break: break-word;
-}
-.msg-user    { background: var(--accent, #00aeef); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-.msg-support { background: #f3f4f6; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
-.msg-ai      { background: #e0f2fe; color: #0369a1; align-self: flex-start; border-bottom-left-radius: 4px; font-style: italic; }
-.msg-meta    { font-size: .72rem; opacity: .55; margin-top: 3px; }
-
-.input-row {
-  display: flex;
-  gap: 10px;
-}
-#msgInput {
-  flex: 1;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  font-size: .93rem;
-  font-family: inherit;
-  resize: none;
-  min-height: 48px;
-}
-#msgInput:focus { outline: none; border-color: var(--accent, #00aeef); }
-#sendBtn {
-  padding: 11px 20px;
-  border-radius: 10px;
-  background: var(--accent, #00aeef);
-  color: #fff;
-  font-weight: 700;
-  font-size: .9rem;
-  border: none;
-  cursor: pointer;
-}
-#sendBtn:disabled { opacity: .5; cursor: default; }
-
-.status-tag {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: .75rem;
-  font-weight: 600;
-  margin-left: 8px;
-}
-.status-open   { background: #dcfce7; color: #16a34a; }
-.status-closed { background: #fee2e2; color: #dc2626; }
 </style>
 
 <div class="support-wrap">
   <div class="support-header">
-    <h1>
-      Поддержка
-      {% if tickets %}
-        {% if tickets[-1].status == 'closed' %}
-          <span class="status-tag status-closed">Закрыт</span>
-        {% else %}
-          <span class="status-tag status-open">Открыт</span>
-        {% endif %}
-      {% endif %}
-    </h1>
-    <p>Опиши свою проблему — мы поможем как можно скорее.</p>
+    <h1>🎧 Техподдержка</h1>
+    <a href="{{ url_for('support_new') }}" class="btn-new">✏️ Новое обращение</a>
   </div>
 
-  <div class="msg-history" id="msgHistory">
-    {% if not tickets %}
-      <div style="text-align:center; color:#9ca3af; padding:40px 0; font-size:.9rem;">
-        Напиши первое сообщение — начнём диалог 👋
-      </div>
-    {% endif %}
+  {% if tickets %}
+  <div class="ticket-list">
     {% for t in tickets %}
-      {% if not t.is_admin and not t.is_support_agent %}
-        <div style="align-self:flex-end; display:flex; flex-direction:column; align-items:flex-end">
-          <div class="msg-bubble msg-user">{{ t.message }}</div>
-          <div class="msg-meta">Вы · {{ t.created_at | datetimeformat }}</div>
+    {% set status_info = statuses[t.status] %}
+    {% set prio_info   = priorities[t.priority] %}
+    <a href="{{ url_for('support_chat', ticket_id=t.id) }}" class="ticket-card">
+      <div class="ticket-icon {{ t.status }}">{{ status_info[0] }}</div>
+      <div class="ticket-info">
+        <div class="ticket-title">{{ t.title }}</div>
+        <div class="ticket-meta">
+          <span class="badge badge-{{ t.status }}">{{ status_info[1] }}</span>
+          <span class="badge badge-{{ t.priority }}">{{ prio_info[0] }} {{ prio_info[1] }}</span>
+          <span>{{ categories[t.category] }}</span>
+          <span>{{ t.updated_at | datetimeformat }}</span>
         </div>
-      {% elif t.is_support_agent %}
-        <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
-          <div class="msg-bubble msg-support">{{ t.message }}</div>
-          <div class="msg-meta">Поддержка · {{ t.created_at | datetimeformat }}</div>
-        </div>
-      {% else %}
-        <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
-          <div class="msg-bubble msg-ai">🤖 {{ t.message }}</div>
-          <div class="msg-meta">AI-бот · {{ t.created_at | datetimeformat }}</div>
-        </div>
+      </div>
+      {% if unread.get(t.id, 0) %}
+        <div class="unread-dot" title="{{ unread[t.id] }} новых ответов"></div>
       {% endif %}
+    </a>
     {% endfor %}
   </div>
-
-  <div class="input-row">
-    <textarea id="msgInput" placeholder="Введи сообщение..." rows="2"></textarea>
-    <button id="sendBtn">Отправить</button>
+  {% else %}
+  <div class="empty-state">
+    <div class="emoji">🤝</div>
+    <p>У вас пока нет обращений в поддержку.</p>
+    <a href="{{ url_for('support_new') }}" class="btn-new">Создать первое обращение</a>
   </div>
+  {% endif %}
 </div>
-
-<script>
-const history = document.getElementById('msgHistory');
-const input   = document.getElementById('msgInput');
-const btn     = document.getElementById('sendBtn');
-
-function scrollDown() {
-  if (history) history.scrollTop = history.scrollHeight;
-}
-scrollDown();
-
-function addBubble(text, who, ts) {
-  const wrap = document.createElement('div');
-  wrap.style.cssText = `align-self:${who==='user'?'flex-end':'flex-start'};display:flex;flex-direction:column;align-items:${who==='user'?'flex-end':'flex-start'}`;
-  const cls = who === 'user' ? 'msg-user' : (who === 'ai' ? 'msg-ai' : 'msg-support');
-  const label = who === 'user' ? 'Вы' : (who === 'ai' ? '🤖 AI-бот' : 'Поддержка');
-  wrap.innerHTML = `<div class="msg-bubble ${cls}">${text}</div><div class="msg-meta">${label} · только что</div>`;
-  history.appendChild(wrap);
-  scrollDown();
-}
-
-btn.addEventListener('click', async () => {
-  const text = input.value.trim();
-  if (!text) return;
-  btn.disabled = true;
-  addBubble(text, 'user');
-  input.value = '';
-
-  try {
-    const res  = await fetch('/api/support/send', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text})
-    });
-    const data = await res.json();
-    if (data.ok && data.reply) {
-      addBubble(data.reply, 'ai');
-    } else if (data.ok) {
-      addBubble('✅ Сообщение получено. Ожидайте ответа от агента.', 'support');
-    }
-  } catch(e) {
-    addBubble('Ошибка отправки. Попробуй ещё раз.', 'ai');
-  }
-  btn.disabled = false;
-  input.focus();
-});
-
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    btn.click();
-  }
-});
-</script>
 {% endblock %}

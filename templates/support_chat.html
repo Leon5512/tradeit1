@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Тикет #{{ ticket.id }} — TradeIt{% endblock %}
+
+{% block content %}
+<style>
+:root { --me-bg: #e8f4ff; --ai-bg: #f5f5f5; --msg-radius: 16px; }
+.page { max-width: 760px; margin: 0 auto; padding: 20px 14px; display: flex; flex-direction: column; height: calc(100vh - 100px); box-sizing: border-box; }
+.ticket-head { background: var(--card-bg, #fff); border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; border: 1.5px solid var(--border, #e8e8e8); }
+.ticket-head h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 700; }
+.ticket-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-open        { background: #fff4e0; color: #d08000; }
+.badge-in_progress { background: #e0f0ff; color: #0066cc; }
+.badge-resolved    { background: #e0ffe8; color: #008a3e; }
+.badge-closed      { background: #f0f0f0; color: #666; }
+.badge-high        { background: #ffe0e0; color: #c0000a; }
+.badge-normal      { background: #fff9e0; color: #996600; }
+.badge-low         { background: #f0fff0; color: #006600; }
+.messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px; scroll-behavior: smooth; }
+.msg { display: flex; gap: 8px; align-items: flex-end; }
+.msg.mine   { flex-direction: row-reverse; }
+.avatar-sm  { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #dde; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #666; }
+.bubble { max-width: 70%; padding: 10px 14px; border-radius: var(--msg-radius); font-size: 0.93rem; line-height: 1.45; word-break: break-word; }
+.bubble.theirs { background: var(--ai-bg, #f0f0f0); border-bottom-left-radius: 4px; }
+.bubble.mine   { background: var(--me-bg, #e0f0ff); border-bottom-right-radius: 4px; }
+.bubble.admin  { background: #e8fff0; border-bottom-left-radius: 4px; }
+.bubble-name { font-size: 0.72rem; color: #999; margin-bottom: 3px; }
+.bubble-time { font-size: 0.68rem; color: #bbb; margin-top: 4px; text-align: right; }
+.msg-ai-label { font-size: 0.7rem; background: #e0f0ff; color: #0066cc; padding: 1px 6px; border-radius: 6px; margin-bottom: 3px; display: inline-block; }
+.input-row { display: flex; gap: 10px; align-items: flex-end; padding-top: 10px; border-top: 1px solid var(--border, #eee); }
+#msg-input { flex: 1; resize: none; padding: 11px 14px; border: 1.5px solid var(--border, #ddd); border-radius: 12px; font-size: 0.93rem; background: var(--input-bg, #fff); color: inherit; font-family: inherit; outline: none; transition: border-color .18s; max-height: 120px; overflow-y: auto; }
+#msg-input:focus { border-color: var(--accent, #00aeef); }
+#send-btn { background: var(--accent, #00aeef); color: #fff; border: none; border-radius: 12px; width: 44px; height: 44px; cursor: pointer; font-size: 1.2rem; transition: opacity .18s; flex-shrink: 0; }
+#send-btn:disabled { opacity: .4; cursor: default; }
+#send-btn:hover:not(:disabled) { opacity: .85; }
+.closed-note { text-align: center; color: #999; font-size: 0.88rem; padding: 12px; background: var(--card-bg, #f9f9f9); border-radius: 10px; margin-top: 10px; }
+.actions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: opacity .18s; }
+.btn-close  { background: #f5f5f5; color: #555; border-color: #ddd; }
+.btn-close:hover  { background: #eee; }
+.btn-rate   { background: #fff9e0; color: #996600; border-color: #f0d070; }
+.btn-rate:hover   { opacity: .8; }
+/* Блок оценки */
+.rate-block { background: var(--card-bg, #fff); border: 1.5px solid var(--border, #eee); border-radius: 14px; padding: 16px 20px; margin-top: 14px; }
+.rate-block h3 { margin: 0 0 10px; font-size: 1rem; }
+.stars { display: flex; gap: 6px; font-size: 1.6rem; cursor: pointer; margin-bottom: 10px; }
+.star { opacity: .3; transition: opacity .15s; }
+.star.on { opacity: 1; }
+.rate-comment { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border, #ddd); border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: var(--input-bg, #fff); color: inherit; outline: none; resize: none; box-sizing: border-box; }
+.btn-rate-send { background: var(--accent, #00aeef); color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 0.88rem; font-weight: 700; cursor: pointer; margin-top: 8px; }
+.existing-rating { display: flex; gap: 3px; font-size: 1.2rem; }
+/* Админская смена статуса */
+.admin-status-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 10px; border-top: 1px dashed #ddd; }
+.admin-status-form select { padding: 6px 10px; border-radius: 8px; border: 1.5px solid #ddd; font-size: 0.85rem; background: var(--input-bg, #fff); color: inherit; }
+.admin-status-form button { padding: 6px 14px; border-radius: 8px; border: none; background: var(--accent, #00aeef); color: #fff; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+
+@media (prefers-color-scheme: dark) {
+  :root { --me-bg: #0e2840; --ai-bg: #1e2530; }
+  .ticket-head { background: #1e2530; border-color: #2e3540; }
+  .badge-open        { background: #3a2e00; color: #ffd060; }
+  .badge-in_progress { background: #00264a; color: #80c0ff; }
+  .badge-resolved    { background: #002a10; color: #60d080; }
+  .badge-closed      { background: #2a2a2a; color: #aaa; }
+  .bubble.theirs { background: #252e3c; }
+  .bubble.admin  { background: #1a2e20; }
+  .rate-block { background: #1e2530; border-color: #2e3540; }
+  .btn-close { background: #2e3540; color: #aaa; border-color: #3e4550; }
+  #msg-input { background: #1a2030; border-color: #2e3a4e; }
+}
+@media (max-width: 520px) { .bubble { max-width: 85%; } }
+</style>
+
+<div class="page">
+  <!-- Заголовок тикета -->
+  <div class="ticket-head">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <a href="{{ url_for('support') }}" style="color:#999;text-decoration:none;font-size:0.9rem;">← Назад</a>
+      <span style="color:#ccc;">|</span>
+      <span style="color:#999;font-size:0.85rem;">Тикет #{{ ticket.id }}</span>
+    </div>
+    <h2>{{ ticket.title }}</h2>
+    <div class="ticket-meta">
+      <span class="badge badge-{{ ticket.status }}">
+        {{ statuses[ticket.status][0] }} {{ statuses[ticket.status][1] }}
+      </span>
+      <span class="badge badge-{{ ticket.priority }}">
+        {{ priorities[ticket.priority][0] }} {{ priorities[ticket.priority][1] }}
+      </span>
+      <span style="font-size:0.8rem;color:#999;">{{ categories[ticket.category] }}</span>
+      <span style="font-size:0.8rem;color:#999;">{{ ticket.created_at | datetimeformat }}</span>
+    </div>
+
+    <!-- Действия пользователя -->
+    {% if ticket.status not in ('resolved','closed') %}
+    <div class="actions-row">
+      <button class="btn-sm btn-close" onclick="closeTicket()">✓ Пометить решённым</button>
+    </div>
+    {% endif %}
+
+    <!-- Смена статуса (только для админа) -->
+    {% if session.get('is_admin') %}
+    <form class="admin-status-form" method="post" action="{{ url_for('admin_support_status', ticket_id=ticket.id) }}">
+      <span style="font-size:0.82rem;font-weight:600;">Статус:</span>
+      <select name="status">
+        {% for key, (icon, label) in statuses.items() %}
+        <option value="{{ key }}" {% if ticket.status == key %}selected{% endif %}>{{ icon }} {{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Обновить</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Лента сообщений -->
+  <div class="messages" id="messages">
+    {% for m in messages %}
+    {% set is_mine = (m.user_id == session.user_id and not m.is_admin) %}
+    <div class="msg {% if is_mine %}mine{% endif %}" data-ts="{{ m.created_at }}">
+      {% if not is_mine %}
+        {% if m.avatar %}
+          <img class="avatar-sm" src="/static/uploads/{{ m.avatar }}" alt="">
+        {% else %}
+          <div class="avatar-sm">{{ m.username[0].upper() }}</div>
+        {% endif %}
+      {% endif %}
+      <div>
+        {% if not is_mine %}
+          {% if m.is_admin %}
+            <div class="msg-ai-label">🤖 AI-поддержка</div>
+          {% else %}
+            <div class="bubble-name">{{ m.username }}</div>
+          {% endif %}
+        {% endif %}
+        <div class="bubble {% if is_mine %}mine{% elif m.is_admin %}admin{% else %}theirs{% endif %}">
+          {{ m.message | e | replace('\n','<br>') | safe }}
+          <div class="bubble-time">{{ m.created_at | datetimeformat }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Поле ввода / заглушка при закрытом тикете -->
+  {% if ticket.status in ('resolved','closed') %}
+    <div class="closed-note">
+      Тикет закрыт. Если проблема повторится — создай новое обращение.
+    </div>
+    {% if ticket.status == 'resolved' and not rating %}
+    <div class="rate-block" id="rate-block">
+      <h3>⭐ Оцени качество поддержки</h3>
+      <div class="stars" id="stars">
+        {% for i in range(1,6) %}<span class="star" data-v="{{ i }}" onclick="setStar({{ i }})">★</span>{% endfor %}
+      </div>
+      <textarea class="rate-comment" id="rate-comment" rows="2" placeholder="Комментарий (необязательно)"></textarea>
+      <br>
+      <button class="btn-rate-send" onclick="sendRating()">Отправить оценку</button>
+    </div>
+    {% elif rating %}
+    <div class="rate-block">
+      <h3>Ваша оценка</h3>
+      <div class="existing-rating">
+        {% for i in range(1,6) %}<span style="opacity:{% if i<=rating.rating %}1{% else %}.25{% endif %}">★</span>{% endfor %}
+      </div>
+      {% if rating.comment %}<p style="margin:8px 0 0;font-size:0.88rem;color:#888;">{{ rating.comment }}</p>{% endif %}
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="input-row">
+    <textarea id="msg-input" rows="1" placeholder="Написать сообщение…" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+    <button id="send-btn" onclick="sendMsg()">➤</button>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+const TICKET_ID = {{ ticket.id }};
+let lastTs = {{ messages[-1].created_at if messages else 0 }};
+const isClosed = {{ 'true' if ticket.status in ('resolved','closed') else 'false' }};
+
+function scrollBottom() {
+  const el = document.getElementById('messages');
+  el.scrollTop = el.scrollHeight;
+}
+scrollBottom();
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts * 1000);
+  return d.toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric'})
+    + ' ' + d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+}
+
+function appendMsg(text, isMine, isAdmin, username, ts) {
+  const wrap = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg' + (isMine ? ' mine' : '');
+  div.dataset.ts = ts;
+
+  const bubbleCls = isMine ? 'mine' : (isAdmin ? 'admin' : 'theirs');
+  const nameHtml  = !isMine
+    ? (isAdmin ? '<div class="msg-ai-label">🤖 AI-поддержка</div>' : `<div class="bubble-name">${username}</div>`)
+    : '';
+  const avatarHtml = !isMine
+    ? `<div class="avatar-sm">${(username||'?')[0].toUpperCase()}</div>`
+    : '';
+
+  div.innerHTML = `
+    ${avatarHtml}
+    <div>
+      ${nameHtml}
+      <div class="bubble ${bubbleCls}">
+        ${text.replace(/\n/g,'<br>')}
+        <div class="bubble-time">${fmtTime(ts)}</div>
+      </div>
+    </div>`;
+  wrap.appendChild(div);
+  scrollBottom();
+}
+
+async function sendMsg() {
+  if (isClosed) return;
+  const inp = document.getElementById('msg-input');
+  const btn = document.getElementById('send-btn');
+  const text = inp.value.trim();
+  if (!text) return;
+  btn.disabled = true;
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  const now = Math.floor(Date.now() / 1000);
+  appendMsg(text, true, false, '{{ session.username }}', now);
+
+  const res = await fetch(`/api/support/${TICKET_ID}/send`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({message: text})
+  });
+  const data = await res.json();
+
+  if (data.ai_reply) {
+    appendMsg(data.ai_reply, false, true, 'Поддержка', now + 1);
+    lastTs = now + 1;
+  } else {
+    lastTs = now;
+  }
+  btn.disabled = false;
+}
+
+async function closeTicket() {
+  if (!confirm('Пометить тикет как решённый?')) return;
+  const res = await fetch(`/api/support/${TICKET_ID}/close`, {method:'POST'});
+  const data = await res.json();
+  if (data.ok) location.reload();
+}
+
+// Оценка
+let selectedStar = 0;
+function setStar(n) {
+  selectedStar = n;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('on', i < n);
+  });
+}
+
+async function sendRating() {
+  if (!selectedStar) { alert('Выбери оценку'); return; }
+  const comment = document.getElementById('rate-comment').value.trim();
+  const res = await fetch(`/api/support/${TICKET_ID}/rate`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({rating: selectedStar, comment})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    document.getElementById('rate-block').innerHTML = '<p style="color:#008a3e;font-weight:600;">✅ Спасибо за оценку!</p>';
+  }
+}
+
+// Polling новых сообщений (только если тикет открыт)
+{% if ticket.status not in ('resolved','closed') %}
+setInterval(async () => {
+  const res  = await fetch(`/api/support/${TICKET_ID}/messages?since=${lastTs}`);
+  const data = await res.json();
+  if (data.ok && data.messages.length) {
+    data.messages.forEach(m => {
+      if (m.created_at > lastTs) {
+        const isMine = (m.user_id == {{ session.user_id }} && !m.is_admin);
+        appendMsg(m.message, isMine, m.is_admin, m.username, m.created_at);
+        lastTs = m.created_at;
+      }
+    });
+  }
+}, 5000);
+{% endif %}
+</script>
+{% endblock %}

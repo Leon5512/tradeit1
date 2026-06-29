@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Новое обращение — TradeIt{% endblock %}
+
+{% block content %}
+<style>
+.form-wrap { max-width: 620px; margin: 0 auto; padding: 24px 16px; }
+.back-link  { display: inline-flex; align-items: center; gap: 6px; color: var(--accent, #00aeef); text-decoration: none; font-size: 0.9rem; margin-bottom: 20px; }
+.back-link:hover { text-decoration: underline; }
+h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; }
+.form-group  { margin-bottom: 18px; }
+label        { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; color: #555; }
+input, textarea, select { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border, #ddd); border-radius: 10px; font-size: 0.95rem; background: var(--input-bg, #fff); color: inherit; box-sizing: border-box; outline: none; transition: border-color .18s; font-family: inherit; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent, #00aeef); }
+textarea { resize: vertical; min-height: 130px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.btn-submit { width: 100%; background: var(--accent, #00aeef); color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 6px; transition: opacity .18s; }
+.btn-submit:hover { opacity: .88; }
+.hint { font-size: 0.8rem; color: #999; margin-top: 4px; }
+.prio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.prio-btn  { border: 1.5px solid var(--border, #ddd); border-radius: 10px; padding: 10px 8px; cursor: pointer; text-align: center; font-size: 0.85rem; font-weight: 600; background: var(--card-bg, #fff); color: inherit; transition: all .18s; }
+.prio-btn:hover { border-color: var(--accent, #00aeef); }
+.prio-btn.selected { border-color: var(--accent, #00aeef); background: var(--accent, #00aeef)1a; }
+#prio-input { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  label  { color: #bbb; }
+  input, textarea, select { background: #1a2030; border-color: #2e3a4e; }
+  .prio-btn { background: #1a2030; border-color: #2e3a4e; }
+}
+@media (max-width: 480px) { .row-2 { grid-template-columns: 1fr; } }
+</style>
+
+<div class="form-wrap">
+  <a href="{{ url_for('support') }}" class="back-link">← Назад к обращениям</a>
+  <h1>✏️ Новое обращение</h1>
+
+  <form method="post" action="{{ url_for('support_new') }}">
+    <div class="form-group">
+      <label>Тема обращения</label>
+      <input type="text" name="title" placeholder="Коротко опиши проблему" maxlength="200" required>
+    </div>
+
+    <div class="row-2">
+      <div class="form-group">
+        <label>Категория</label>
+        <select name="category">
+          {% for key, label in categories.items() %}
+          <option value="{{ key }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Приоритет</label>
+        <div class="prio-grid">
+          {% for key, (icon, label) in priorities.items() %}
+          <button type="button" class="prio-btn {% if key == 'normal' %}selected{% endif %}"
+                  onclick="setPriority('{{ key }}', this)">
+            {{ icon }}<br>{{ label }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="priority" id="prio-input" value="normal">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Описание проблемы</label>
+      <textarea name="message" placeholder="Подробно опиши, что произошло. Чем больше деталей, тем быстрее мы поможем." required></textarea>
+      <div class="hint">Опиши шаги, которые привели к проблеме, и что ты ожидал получить.</div>
+    </div>
+
+    <button type="submit" class="btn-submit">🚀 Отправить обращение</button>
+  </form>
+</div>
+
+<script>
+function setPriority(key, btn) {
+  document.querySelectorAll('.prio-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('prio-input').value = key;
+}
+</script>
+{% endblock %}
