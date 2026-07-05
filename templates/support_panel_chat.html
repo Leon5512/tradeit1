@@ -113,7 +113,7 @@
       {% for ag in agents %}
         <option value="{{ ag.id }}"
           {% if tickets and tickets[-1].assigned_support_id == ag.id %}selected{% endif %}>
-          {{ ag.username }}
+          {{ ag.username }}{% if ag.position %} ({{ ag.position }}){% endif %}
         </option>
       {% endfor %}
     </select>
@@ -126,12 +126,12 @@
       {% if t.is_support_agent %}
         <div style="align-self:flex-end; display:flex; flex-direction:column; align-items:flex-end">
           <div class="msg-bubble msg-support">{{ t.message }}</div>
-          <div class="msg-meta">{{ t.agent_name or 'Поддержка' }} · {{ t.created_at | datetimeformat }}</div>
+          <div class="msg-meta">{{ t.agent_name or 'Поддержка' }}{% if t.agent_position %} · {{ t.agent_position }}{% endif %} · {{ t.created_at | datetimeformat }}</div>
         </div>
       {% elif t.is_admin %}
-        <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
-          <div class="msg-bubble msg-ai">🤖 {{ t.message }}</div>
-          <div class="msg-meta">AI-бот · {{ t.created_at | datetimeformat }}</div>
+        <div style="align-self:flex-end; display:flex; flex-direction:column; align-items:flex-end">
+          <div class="msg-bubble msg-support">{{ t.message }}</div>
+          <div class="msg-meta">Администратор · {{ t.created_at | datetimeformat }}</div>
         </div>
       {% else %}
         <div style="align-self:flex-start; display:flex; flex-direction:column; align-items:flex-start">
