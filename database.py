@@ -213,6 +213,7 @@ def init_db():
         ("users", "balance",                      "REAL DEFAULT 0"),
         ("users", "is_support",                   "INTEGER DEFAULT 0"),
         ("users", "position",                     "TEXT DEFAULT ''"),
+        ("users", "last_wheel_spin",               "INTEGER DEFAULT 0"),
         ("users", "is_verified",                  "INTEGER DEFAULT 0"),
         ("users", "verify_token",                 "TEXT DEFAULT ''"),
         ("users", "tfa_enabled",                  "INTEGER DEFAULT 0"),
