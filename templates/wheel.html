@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Колесо фортуны — TradeIt{% endblock %}
+{% block content %}
+<div class="container" style="max-width:520px;">
+
+  <div style="text-align:center;margin:24px 0 8px;">
+    <h1 style="font-size:1.6rem;font-weight:800;margin:0;">🎡 Колесо фортуны</h1>
+    <p style="color:var(--muted);font-size:14px;margin-top:6px;">Раз в 24 часа — бесплатный шанс выиграть TEITS</p>
+  </div>
+
+  <div style="position:relative;width:300px;height:300px;margin:24px auto;">
+    <!-- Указатель -->
+    <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);z-index:2;
+      width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;
+      border-top:24px solid var(--text, #222);filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));"></div>
+
+    <div id="wheel" style="width:100%;height:100%;border-radius:50%;position:relative;
+      background:{{ wheel_gradient }};
+      border:6px solid var(--card-bg, #fff);
+      box-shadow:0 6px 24px rgba(0,0,0,.25);
+      transition:transform 4.5s cubic-bezier(.15,.7,.1,1);">
+      {% for seg in segments %}
+      <div style="position:absolute;top:50%;left:50%;width:0;height:0;
+        transform:rotate({{ seg.mid_angle }}deg);">
+        <span style="display:inline-block;transform:translate(-50%,-128px) rotate(90deg);
+          color:#fff;font-weight:800;font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.5);">
+          {{ seg.amount }}
+        </span>
+      </div>
+      {% endfor %}
+      <div style="position:absolute;top:50%;left:50%;width:26px;height:26px;
+        transform:translate(-50%,-50%);border-radius:50%;background:var(--card-bg,#fff);
+        border:3px solid var(--text,#222);"></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;">
+    <button id="spinBtn" class="btn btn-primary" style="padding:12px 34px;font-size:16px;font-weight:700;"
+      {% if not can_spin %}disabled{% endif %}
+      onclick="spinWheel()">
+      {% if can_spin %}🎲 Крутить{% else %}⏳ <span id="cooldown-text">Позже</span>{% endif %}
+    </button>
+    <div id="resultMsg" style="margin-top:16px;font-size:15px;font-weight:700;min-height:22px;"></div>
+  </div>
+
+  <div class="card" style="margin-top:24px;padding:16px 20px;">
+    <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+      💡 Один спин раз в 24 часа. Возможные призы: {% for seg in segments %}{{ seg.amount }}{% if not loop.last %}, {% endif %}{% endfor %} TEITS.
+    </div>
+  </div>
+</div>
+
+<script>
+const SEGMENTS = {{ segments | tojson }};
+let secondsLeft = {{ seconds_left }};
+const canSpinInitially = {{ 'true' if can_spin else 'false' }};
+
+function formatTime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return `${h}ч ${m}м`;
+}
+
+function tickCooldown() {
+  const el = document.getElementById('cooldown-text');
+  if (!el) return;
+  if (secondsLeft <= 0) { location.reload(); return; }
+  el.textContent = formatTime(secondsLeft);
+  secondsLeft -= 1;
+}
+if (!canSpinInitially) { tickCooldown(); setInterval(tickCooldown, 1000); }
+
+let currentRotation = 0;
+
+function spinWheel() {
+  const btn = document.getElementById('spinBtn');
+  btn.disabled = true;
+  fetch('/api/wheel/spin', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) {
+        document.getElementById('resultMsg').textContent = d.msg || 'Не получилось';
+        btn.disabled = false;
+        return;
+      }
+      const n = SEGMENTS.length;
+      const segAngle = 360 / n;
+      // Крутим так, чтобы выигрышный сегмент оказался под указателем сверху (0deg = 12 часов)
+      const targetWithinCircle = 360 - (d.segment_index * segAngle) - segAngle / 2;
+      currentRotation += 360 * 5 + targetWithinCircle - (currentRotation % 360);
+      const wheel = document.getElementById('wheel');
+      wheel.style.transform = `rotate(${currentRotation}deg)`;
+      setTimeout(() => {
+        document.getElementById('resultMsg').textContent = `🎉 Выигрыш: ${d.amount} TEITS!`;
+        const navBalance = document.getElementById('nav-balance');
+        const mobileBalance = document.getElementById('mobile-balance');
+        if (navBalance) navBalance.textContent = Number(d.balance).toLocaleString('ru-RU') + ' TEITS';
+        if (mobileBalance) mobileBalance.textContent = Number(d.balance).toLocaleString('ru-RU') + ' TEITS';
+      }, 4600);
+    })
+    .catch(() => { btn.disabled = false; });
+}
+</script>
+{% endblock %}

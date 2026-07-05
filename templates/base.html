@@ -330,6 +330,7 @@ nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
       <a href="/wallet" class="btn btn-ghost btn-sm" id="balance-btn">
         💰 <span id="nav-balance">…</span>
       </a>
+      <a href="/wheel" class="btn btn-ghost btn-sm" title="Колесо фортуны">🎡</a>
       <a href="/settings" class="btn btn-ghost btn-sm">⚙️</a>
       <a href="/user/{{ session.username }}" class="btn btn-ghost btn-sm">👤 {{ session.username }}</a>
       <a href="/logout" class="btn btn-ghost btn-sm">Выйти</a>
@@ -360,6 +361,7 @@ nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
     <a href="/messenger" class="btn btn-msn">🚀 Мессенджер</a>
     <a href="/support" class="btn btn-ghost">💬 Поддержка</a>
     <a href="/wallet" class="btn btn-ghost">💰 Кошелёк — <span id="mobile-balance">…</span></a>
+    <a href="/wheel" class="btn btn-ghost">🎡 Колесо фортуны</a>
     <a href="/user/{{ session.username }}" class="btn btn-ghost">👤 {{ session.username }}</a>
     <a href="/settings" class="btn btn-ghost">⚙️ Настройки</a>
     <a href="/logout" class="btn btn-ghost">🚪 Выйти</a>
@@ -518,7 +520,7 @@ checkMsnUnread(); setInterval(checkMsnUnread, 10000);
 
 function updateBalance() {
   fetch('/api/balance').then(r=>r.json()).then(d => {
-    const fmt = Number(d.balance).toLocaleString('ru-RU', {maximumFractionDigits:2}) + ' ₽';
+    const fmt = Number(d.balance).toLocaleString('ru-RU', {maximumFractionDigits:2}) + ' TEITS';
     ['nav-balance','mobile-balance'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = fmt; });
   }).catch(()=>{});
 }

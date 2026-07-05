@@ -12,7 +12,7 @@
       border-radius:50%;background:rgba(255,255,255,0.05);"></div>
     <div style="font-size:13px;opacity:0.8;margin-bottom:6px;letter-spacing:0.5px;">МОЙ БАЛАНС</div>
     <div style="font-size:42px;font-weight:800;letter-spacing:-1px;" id="balance-display">
-      {{ "{:,.2f}".format(user.balance or 0).replace(",", " ") }} ₽
+      {{ "{:,.2f}".format(user.balance or 0).replace(",", " ") }} TEITS
     </div>
     <div style="font-size:13px;opacity:0.75;margin-top:8px;">👤 {{ user.username }}</div>
   </div>
@@ -66,7 +66,7 @@
         </div>
         <div style="font-size:16px;font-weight:800;white-space:nowrap;
           color:{% if tx.amount > 0 %}#16a34a{% else %}#ef4444{% endif %};">
-          {% if tx.amount > 0 %}+{% endif %}{{ "{:,.2f}".format(tx.amount).replace(",", " ") }} ₽
+          {% if tx.amount > 0 %}+{% endif %}{{ "{:,.2f}".format(tx.amount).replace(",", " ") }} TEITS
         </div>
       </div>
       {% endfor %}
@@ -95,8 +95,8 @@ function doRedeem() {
   }).then(r=>r.json()).then(d=>{
     if (d.ok) {
       msg.style.color='#16a34a';
-      msg.textContent = `✅ Баланс пополнен на ${Number(d.amount).toLocaleString('ru-RU')} ₽!`;
-      const fmt = v => Number(v).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽';
+      msg.textContent = `✅ Баланс пополнен на ${Number(d.amount).toLocaleString('ru-RU')} TEITS!`;
+      const fmt = v => Number(v).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' TEITS';
       document.getElementById('balance-display').textContent = fmt(d.balance);
       const nav = document.getElementById('nav-balance');
       if (nav) nav.textContent = fmt(d.balance);
