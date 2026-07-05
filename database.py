@@ -200,35 +200,6 @@ def init_db():
             expires_at INTEGER NOT NULL,
             used       INTEGER DEFAULT 0
         );
-        CREATE TABLE IF NOT EXISTS support_tickets_v2 (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id     INTEGER NOT NULL,
-            title       TEXT NOT NULL DEFAULT 'Обращение',
-            category    TEXT NOT NULL DEFAULT 'other',
-            priority    TEXT NOT NULL DEFAULT 'normal',
-            status      TEXT NOT NULL DEFAULT 'open',
-            created_at  INTEGER NOT NULL,
-            updated_at  INTEGER NOT NULL,
-            closed_at   INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS support_messages (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticket_id   INTEGER NOT NULL,
-            user_id     INTEGER NOT NULL,
-            is_admin    INTEGER NOT NULL DEFAULT 0,
-            message     TEXT NOT NULL,
-            created_at  INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS support_ratings (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticket_id   INTEGER NOT NULL UNIQUE,
-            rating      INTEGER NOT NULL,
-            comment     TEXT,
-            created_at  INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_st_user   ON support_tickets_v2(user_id);
-        CREATE INDEX IF NOT EXISTS idx_st_status ON support_tickets_v2(status);
-        CREATE INDEX IF NOT EXISTS idx_sm_ticket ON support_messages(ticket_id);
     """)
 
     # Миграции — идемпотентно добавляем колонки если их ещё нет
@@ -241,6 +212,7 @@ def init_db():
         ("users", "avatar",                       "TEXT DEFAULT ''"),
         ("users", "balance",                      "REAL DEFAULT 0"),
         ("users", "is_support",                   "INTEGER DEFAULT 0"),
+        ("users", "position",                     "TEXT DEFAULT ''"),
         ("users", "is_verified",                  "INTEGER DEFAULT 0"),
         ("users", "verify_token",                 "TEXT DEFAULT ''"),
         ("users", "tfa_enabled",                  "INTEGER DEFAULT 0"),
