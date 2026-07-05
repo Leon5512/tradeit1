@@ -6,15 +6,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from push_notifications import send_push_to_user, VAPID_PUBLIC_KEY
 import os, time, functools, uuid as uuid_lib, secrets
-import requests as http_requests
 
 
 # ── 2FA зависимости ──────────────────────────────────
 import pyotp
 import qrcode
 import io, base64
-
-os.environ["OPENROUTER_API_KEY"] = "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"
 
 app = Flask(__name__)
 app.register_blueprint(nft_bp)
@@ -607,7 +604,9 @@ def support():
         return redirect(url_for("support"))
 
     tickets = db.execute(
-        "SELECT * FROM support_tickets WHERE user_id=? ORDER BY created_at",
+        "SELECT st.*, u.position as agent_position FROM support_tickets st "
+        "LEFT JOIN users u ON st.assigned_support_id = u.id "
+        "WHERE st.user_id=? ORDER BY st.created_at",
         (uid,)
     ).fetchall()
     return render_template("support.html", tickets=tickets)
@@ -637,59 +636,20 @@ def api_support_send():
     )
     db.commit()
 
-    # История для AI
-    history = db.execute(
-        "SELECT message, is_admin, is_support_agent FROM support_tickets WHERE user_id=? ORDER BY created_at DESC LIMIT 10",
-        (uid,)
-    ).fetchall()
-    history = list(reversed(history))
-
-    messages_for_ai = []
-    for h in history:
-        role = "assistant" if (h["is_admin"] or h["is_support_agent"]) else "user"
-        messages_for_ai.append({"role": role, "content": h["message"]})
-
-    # Если нет назначенного агента — отвечает AI
-    if not assigned_id:
-        try:
-            resp = http_requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {os.environ.get('OPENROUTER_API_KEY', '')}"
-                },
-                json={
-                    "model": "meta-llama/llama-3.1-8b-instruct:free",
-                    "messages": [
-                        {"role": "system", "content": "Ты техподдержка сайта TradeIt — это маркетплейс для продажи товаров. Помогай пользователям с вопросами о сайте: как разместить объявление, как написать продавцу, как редактировать профиль и т.д. Отвечай кратко, дружелюбно, на русском языке."}
-                    ] + messages_for_ai
-                },
-                timeout=15
+    # Уведомляем сотрудника поддержки (push), если тикет уже кому-то назначен.
+    # Ответ на обращение теперь всегда даёт живой сотрудник — никакого AI-автоответа.
+    if assigned_id:
+        agent = db.execute("SELECT id FROM users WHERE id=?", (assigned_id,)).fetchone()
+        if agent:
+            user_row = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+            uname = user_row["username"] if user_row else "Пользователь"
+            send_push_to_user(
+                db, assigned_id,
+                title=f"💬 Новое сообщение от {uname}",
+                body=text[:80],
+                url="/support/panel",
+                tag="support"
             )
-            ai_text = resp.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            print("SUPPORT AI ERROR:", str(e))
-            ai_text = "Ваш запрос принят. Скоро ответят."
-
-        db.execute(
-            "INSERT INTO support_tickets (user_id, message, is_admin, is_support_agent, status, created_at) VALUES (?,?,1,0,'open',?)",
-            (uid, ai_text, int(time.time()))
-        )
-        db.commit()
-        return jsonify({"ok": True, "reply": ai_text})
-
-    # Если есть агент — уведомляем его (push) и просто подтверждаем
-    agent = db.execute("SELECT id FROM users WHERE id=?", (assigned_id,)).fetchone()
-    if agent:
-        user_row = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
-        uname = user_row["username"] if user_row else "Пользователь"
-        send_push_to_user(
-            db, assigned_id,
-            title=f"💬 Новое сообщение от {uname}",
-            body=text[:80],
-            url="/support/panel",
-            tag="support"
-        )
     return jsonify({"ok": True, "reply": None})
 
 
@@ -733,7 +693,7 @@ def support_panel():
         """, (uid,)).fetchall()
 
     agents = db.execute(
-        "SELECT id, username FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
+        "SELECT id, username, position FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
     ).fetchall()
 
     return render_template("support_panel.html",
@@ -774,12 +734,12 @@ def support_panel_chat(user_id):
         return redirect(url_for("support_panel_chat", user_id=user_id))
 
     tickets = db.execute(
-        "SELECT st.*, u.username as agent_name FROM support_tickets st LEFT JOIN users u ON st.assigned_support_id = u.id WHERE st.user_id=? ORDER BY st.created_at",
+        "SELECT st.*, u.username as agent_name, u.position as agent_position FROM support_tickets st LEFT JOIN users u ON st.assigned_support_id = u.id WHERE st.user_id=? ORDER BY st.created_at",
         (user_id,)
     ).fetchall()
     target_user = db.execute("SELECT id, username, avatar FROM users WHERE id=?", (user_id,)).fetchone()
     agents = db.execute(
-        "SELECT id, username FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
+        "SELECT id, username, position FROM users WHERE is_support=1 OR is_admin=1 ORDER BY username"
     ).fetchall()
 
     return render_template("support_panel_chat.html",
@@ -836,9 +796,21 @@ def admin_remove_support(user_id):
     if not session.get("is_admin") or not session.get("admin_unlocked"):
         abort(403)
     db = get_db()
-    db.execute("UPDATE users SET is_support=0 WHERE id=?", (user_id,))
+    db.execute("UPDATE users SET is_support=0, position='' WHERE id=?", (user_id,))
     db.commit()
     flash("Роль поддержки снята", "success")
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/set_position/<int:user_id>", methods=["POST"])
+def admin_set_position(user_id):
+    if not session.get("is_admin") or not session.get("admin_unlocked"):
+        abort(403)
+    position = request.form.get("position", "").strip()[:60]
+    db = get_db()
+    db.execute("UPDATE users SET position=? WHERE id=?", (position, user_id))
+    db.commit()
+    flash("Должность обновлена", "success")
     return redirect(url_for("admin"))
 
 # ── Избранное ─────────────────────────────────────────
