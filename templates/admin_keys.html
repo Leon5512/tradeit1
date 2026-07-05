@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Ключи баланса{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:24px;margin-bottom:20px;">
+    <h1 style="font-size:24px;font-weight:800;">🔑 Ключи пополнения баланса</h1>
+    <a href="{{ url_for('admin') }}" class="btn btn-ghost btn-sm">🛡️ Назад в админку</a>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3 style="font-weight:800;margin-bottom:12px;">Создать новый ключ</h3>
+    <form method="post" action="{{ url_for('keys.admin_keys_create') }}" style="display:flex;gap:10px;">
+      <input type="number" name="amount" min="1" step="1" placeholder="Сумма ключа в ₽" required style="flex:1;">
+      <button type="submit" class="btn btn-accent">Создать ключ</button>
+    </form>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;">
+      Код будет показан один раз после создания — передай его пользователю вручную (в чате, лично и т.д.).
+      Погасить ключ пользователь может у себя в кошельке.
+    </p>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:2px solid var(--border);font-weight:800;font-size:16px;">
+      📋 Все ключи
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
+      <tr style="background:var(--bg);">
+        <th style="padding:10px 16px;text-align:left;">Код</th>
+        <th style="padding:10px 16px;text-align:left;">Сумма</th>
+        <th style="padding:10px 16px;text-align:left;">Создал</th>
+        <th style="padding:10px 16px;text-align:left;">Статус</th>
+        <th style="padding:10px 16px;text-align:left;">Действия</th>
+      </tr>
+      {% for k in keys %}
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:10px 16px;font-family:monospace;font-weight:700;">{{ k.code }}</td>
+        <td style="padding:10px 16px;font-weight:700;color:var(--accent);">{{ "{:,.0f}".format(k.amount).replace(",", " ") }} ₽</td>
+        <td style="padding:10px 16px;color:var(--muted);">{{ k.creator_name }}</td>
+        <td style="padding:10px 16px;">
+          {% if k.used_by %}
+            <span style="color:var(--muted);font-weight:700;">✅ Использован — {{ k.used_by_name }}</span>
+          {% else %}
+            <span style="color:var(--success);font-weight:700;">🟢 Активен</span>
+          {% endif %}
+        </td>
+        <td style="padding:10px 16px;">
+          {% if not k.used_by %}
+          <form method="post" action="{{ url_for('keys.admin_keys_delete', key_id=k.id) }}" onsubmit="return confirm('Удалить ключ?')">
+            <button type="submit" class="btn btn-danger btn-sm">🗑</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="padding:30px;text-align:center;color:var(--muted);">Ключей пока нет</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

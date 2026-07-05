@@ -17,36 +17,27 @@
     <div style="font-size:13px;opacity:0.75;margin-top:8px;">👤 {{ user.username }}</div>
   </div>
 
-  <!-- Пополнение -->
+  <!-- Пополнение по ключу -->
   <div class="card" style="margin-top:20px;">
-    <h2 style="font-size:17px;font-weight:800;margin-bottom:16px;">💳 Пополнить баланс</h2>
-
-    <!-- Быстрые суммы -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-      {% for amt in [100, 500, 1000, 2000, 5000, 10000] %}
-      <button onclick="setAmount({{ amt }})" class="btn btn-ghost btn-sm quick-amt"
-        style="font-weight:700;">{{ "{:,}".format(amt).replace(",", " ") }} ₽</button>
-      {% endfor %}
-    </div>
+    <h2 style="font-size:17px;font-weight:800;margin-bottom:10px;">🔑 Пополнить по ключу</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+      Баланс пополняет только администратор. Если тебе выдали ключ — введи его код ниже.
+    </p>
 
     <div style="display:flex;gap:10px;align-items:flex-start;">
       <div style="flex:1;">
-        <div style="position:relative;">
-          <input type="number" id="topup-amount" placeholder="Введи сумму" min="1" max="1000000"
-            style="width:100%;padding-right:36px;"
-            oninput="clearMsg()" onkeydown="if(event.key==='Enter')doTopup()">
-          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-            color:var(--muted);font-size:14px;pointer-events:none;">₽</span>
-        </div>
-        <div id="topup-msg" style="font-size:13px;margin-top:6px;min-height:18px;"></div>
+        <input type="text" id="redeem-code" placeholder="XXXX-XXXX-XXXX-XXXX"
+          style="width:100%;text-transform:uppercase;letter-spacing:1px;font-family:monospace;"
+          oninput="clearRedeemMsg()" onkeydown="if(event.key==='Enter')doRedeem()">
+        <div id="redeem-msg" style="font-size:13px;margin-top:6px;min-height:18px;"></div>
       </div>
-      <button onclick="doTopup()" class="btn btn-primary" style="padding:10px 22px;white-space:nowrap;">
-        Пополнить
+      <button onclick="doRedeem()" class="btn btn-primary" style="padding:10px 22px;white-space:nowrap;">
+        Погасить
       </button>
     </div>
 
     <div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.6;">
-      ℹ️ Это демо-версия — деньги зачисляются сразу без реальной оплаты.
+      ℹ️ Каждый ключ можно использовать только один раз.
     </div>
   </div>
 
@@ -90,34 +81,26 @@
 </div>
 
 <script>
-function setAmount(v) {
-  document.getElementById('topup-amount').value = v;
-  document.querySelectorAll('.quick-amt').forEach(b => b.style.background = '');
-  event.target.style.background = 'var(--primary)';
-  event.target.style.color = 'white';
-  clearMsg();
+function clearRedeemMsg() {
+  document.getElementById('redeem-msg').textContent = '';
 }
-function clearMsg() {
-  document.getElementById('topup-msg').textContent = '';
-}
-function doTopup() {
-  const amount = parseFloat(document.getElementById('topup-amount').value);
-  const msg = document.getElementById('topup-msg');
-  if (!amount || amount <= 0) { msg.style.color='var(--error)'; msg.textContent='Введи сумму'; return; }
-  fetch('/wallet/topup', {
+function doRedeem() {
+  const code = document.getElementById('redeem-code').value.trim().toUpperCase();
+  const msg = document.getElementById('redeem-msg');
+  if (!code) { msg.style.color='var(--error)'; msg.textContent='Введи код ключа'; return; }
+  fetch('/api/wallet/redeem', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({amount})
+    body:JSON.stringify({code})
   }).then(r=>r.json()).then(d=>{
     if (d.ok) {
       msg.style.color='#16a34a';
-      msg.textContent='✅ Баланс пополнен!';
+      msg.textContent = `✅ Баланс пополнен на ${Number(d.amount).toLocaleString('ru-RU')} ₽!`;
       const fmt = v => Number(v).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽';
       document.getElementById('balance-display').textContent = fmt(d.balance);
       const nav = document.getElementById('nav-balance');
       if (nav) nav.textContent = fmt(d.balance);
-      document.getElementById('topup-amount').value = '';
-      document.querySelectorAll('.quick-amt').forEach(b => { b.style.background=''; b.style.color=''; });
+      document.getElementById('redeem-code').value = '';
       setTimeout(() => location.reload(), 1200);
     } else {
       msg.style.color='var(--error)';

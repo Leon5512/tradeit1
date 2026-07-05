@@ -2,8 +2,9 @@
 {% block title %}Админ панель{% endblock %}
 {% block content %}
 <div class="container">
-  <div class="page-header" style="margin-top:20px;">
+  <div class="page-header" style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
     <h1>🛡️ Админ панель</h1>
+    <a href="{{ url_for('keys.admin_keys') }}" class="btn btn-accent btn-sm">🔑 Ключи баланса</a>
   </div>
 
   <!-- Статистика -->
