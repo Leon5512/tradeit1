@@ -208,6 +208,53 @@ def api_upgrade_gift(gift_id):
     })
 
 
+# ── Подарить NFT другому пользователю ────────────────
+@nft_bp.route("/api/gifts/<int:gift_id>/gift", methods=["POST"])
+def api_gift_nft(gift_id):
+    if "user_id" not in session:
+        return jsonify({"ok": False, "msg": "Войди в аккаунт"})
+    uid = session["user_id"]
+    db = get_db()
+    gift = db.execute("SELECT * FROM gifts WHERE id=? AND user_id=?", (gift_id, uid)).fetchone()
+    if not gift:
+        return jsonify({"ok": False, "msg": "Подарок не найден"})
+    if not gift["is_nft"]:
+        return jsonify({"ok": False, "msg": "Дарить можно только улучшенные до NFT подарки"})
+    if gift["for_sale"]:
+        return jsonify({"ok": False, "msg": "Сначала сними NFT с продажи"})
+
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    if not username:
+        return jsonify({"ok": False, "msg": "Укажи имя пользователя"})
+
+    recipient = db.execute("SELECT id, username FROM users WHERE username=?", (username,)).fetchone()
+    if not recipient:
+        return jsonify({"ok": False, "msg": "Пользователь не найден"})
+    if recipient["id"] == uid:
+        return jsonify({"ok": False, "msg": "Нельзя подарить самому себе"})
+
+    now = int(time.time())
+    db.execute("UPDATE gifts SET user_id=?, for_sale=0, sale_price=0 WHERE id=?", (recipient["id"], gift_id))
+    db.commit()
+
+    try:
+        from push_notifications import send_push_to_user
+        cfg = GIFT_CATALOG.get(gift["gift_type"], {})
+        sender = db.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+        send_push_to_user(
+            db, recipient["id"],
+            title="🎁 Тебе подарили NFT!",
+            body=f"{sender['username']} подарил тебе «{cfg.get('name', gift['gift_type'])}»",
+            url=f"/gifts/{gift_id}",
+            tag="nft_gift"
+        )
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "msg": f"Подарок отправлен пользователю {recipient['username']}"})
+
+
 # ── Карточка NFT ──────────────────────────────────────
 @nft_bp.route("/gifts/<int:gift_id>")
 def gift_card(gift_id):
