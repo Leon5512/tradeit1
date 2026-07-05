@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_from_directory
 from database import init_db, get_db
 from nft_routes import nft_bp, init_nft_db
+from balance_keys import keys_bp, init_keys_db
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from push_notifications import send_push_to_user, VAPID_PUBLIC_KEY
@@ -17,6 +18,7 @@ os.environ["OPENROUTER_API_KEY"] = "sk-or-v1-2b5e2077d73b932ba54bf0f57e69d794f83
 
 app = Flask(__name__)
 app.register_blueprint(nft_bp)
+app.register_blueprint(keys_bp)
 app.secret_key = os.environ.get("SECRET_KEY", "avito_secret_2024_change_me")
 
 import datetime
@@ -106,6 +108,7 @@ def sw_js():
 def setup():
     init_db()
     init_nft_db(get_db())
+    init_keys_db(get_db())
     if "user_id" in session:
         db = get_db()
         user = db.execute("SELECT is_banned, is_admin FROM users WHERE id=?", (session["user_id"],)).fetchone()
@@ -500,25 +503,9 @@ def wallet():
     txs = db.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 50", (session["user_id"],)).fetchall()
     return render_template("wallet.html", user=user, transactions=txs)
 
-@app.route("/wallet/topup", methods=["POST"])
-def wallet_topup():
-    if "user_id" not in session:
-        return jsonify({"ok": False, "msg": "Войди в аккаунт"})
-    data = request.get_json()
-    try:
-        amount = float(data.get("amount", 0))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "msg": "Неверная сумма"})
-    if amount <= 0 or amount > 1_000_000:
-        return jsonify({"ok": False, "msg": "Сумма должна быть от 1 до 1 000 000 ₽"})
-    uid = session["user_id"]
-    db = get_db()
-    db.execute("UPDATE users SET balance = balance + ? WHERE id=?", (amount, uid))
-    db.execute("INSERT INTO transactions (user_id, amount, type, description, created_at) VALUES (?,?,?,?,?)",
-               (uid, amount, "topup", "Пополнение баланса", int(time.time())))
-    db.commit()
-    new_balance = db.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()[0]
-    return jsonify({"ok": True, "balance": new_balance})
+# Примечание: раньше здесь был открытый /wallet/topup (любой пополнял себе
+# баланс на любую сумму). Теперь пополнение — только через ключи админа,
+# см. balance_keys.py (/admin/keys и /api/wallet/redeem).
 
 @app.route("/api/balance")
 def api_balance():
