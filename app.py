@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_from_directory
 from database import init_db, get_db
+from nft_routes import nft_bp, init_nft_db
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from push_notifications import send_push_to_user, VAPID_PUBLIC_KEY
@@ -15,6 +16,7 @@ import io, base64
 os.environ["OPENROUTER_API_KEY"] = "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"
 
 app = Flask(__name__)
+app.register_blueprint(nft_bp)
 app.secret_key = os.environ.get("SECRET_KEY", "avito_secret_2024_change_me")
 
 import datetime
@@ -103,6 +105,7 @@ def sw_js():
 @app.before_request
 def setup():
     init_db()
+    init_nft_db(get_db())
     if "user_id" in session:
         db = get_db()
         user = db.execute("SELECT is_banned, is_admin FROM users WHERE id=?", (session["user_id"],)).fetchone()
