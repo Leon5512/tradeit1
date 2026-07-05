@@ -42,12 +42,17 @@
       {% if is_owner and not gift.for_sale %}
       <form method="post" action="{{ url_for('nft.gift_sell', gift_id=gift.id) }}"
         style="margin-top:20px;display:flex;gap:8px;">
-        <input type="number" name="price" placeholder="Цена в ₽" min="1" step="1" required style="flex:1;">
+        <input type="number" name="price" placeholder="Цена в TEITS" min="1" step="1" required style="flex:1;">
         <button type="submit" class="btn btn-accent btn-sm">Выставить на продажу</button>
       </form>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <input type="text" id="gift-username" placeholder="Имя пользователя" style="flex:1;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="giftNft({{ gift.id }})">🎁 Подарить</button>
+      </div>
+      <div id="gift-msg" style="margin-top:8px;font-size:12.5px;min-height:16px;"></div>
       {% elif gift.for_sale %}
       <div style="margin-top:18px;padding:10px;background:var(--bg);border-radius:8px;font-size:12.5px;color:var(--muted);">
-        Этот NFT уже выставлен на продажу за {{ "{:,.0f}".format(gift.sale_price).replace(",", " ") }} ₽
+        Этот NFT уже выставлен на продажу за {{ "{:,.0f}".format(gift.sale_price).replace(",", " ") }} TEITS
       </div>
       {% endif %}
     {% else %}
@@ -62,4 +67,24 @@
     {% endif %}
   </div>
 </div>
+<script>
+function giftNft(giftId) {
+  const input = document.getElementById('gift-username');
+  const msg = document.getElementById('gift-msg');
+  const username = input.value.trim();
+  if (!username) { msg.style.color = 'var(--error, #c0000a)'; msg.textContent = 'Введи имя пользователя'; return; }
+  fetch(`/api/gifts/${giftId}/gift`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username })
+  })
+    .then(r => r.json())
+    .then(d => {
+      msg.style.color = d.ok ? 'var(--success, #008a3e)' : 'var(--error, #c0000a)';
+      msg.textContent = d.msg;
+      if (d.ok) setTimeout(() => location.href = '/gifts/mine', 1200);
+    })
+    .catch(() => { msg.style.color = 'var(--error, #c0000a)'; msg.textContent = 'Ошибка сети'; });
+}
+</script>
 {% endblock %}
