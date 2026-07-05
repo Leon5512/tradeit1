@@ -52,6 +52,7 @@
         <td style="padding:10px 16px;font-weight:700;">
           <a href="/user/{{ u.username }}" style="color:var(--text);text-decoration:none;">{{ u.username }}</a>
           {% if u.is_admin %}<span style="font-size:11px;background:var(--primary);color:white;padding:2px 7px;border-radius:20px;margin-left:6px;">ADMIN</span>{% endif %}
+          {% if u.is_support %}<span style="font-size:11px;background:var(--success);color:white;padding:2px 7px;border-radius:20px;margin-left:6px;">{{ u.position if u.position else 'ПОДДЕРЖКА' }}</span>{% endif %}
         </td>
         <td style="padding:10px 16px;color:var(--muted);">{{ u.email }}</td>
         <td style="padding:10px 16px;">
@@ -69,6 +70,15 @@
               {% if not u.is_admin %}
                 <a href="/admin/make_admin/{{ u.id }}" class="btn btn-sm btn-ghost" onclick="return confirm('Сделать админом?')">Админ</a>
               {% endif %}
+              {% if u.is_support %}
+                <a href="/admin/remove_support/{{ u.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Снять роль поддержки?')">Снять поддержку</a>
+              {% else %}
+                <a href="/admin/make_support/{{ u.id }}" class="btn btn-sm btn-ghost">Сделать поддержкой</a>
+              {% endif %}
+              <form method="post" action="/admin/set_position/{{ u.id }}" style="display:flex;gap:4px;">
+                <input type="text" name="position" placeholder="Должность" value="{{ u.position or '' }}" style="width:110px;font-size:12px;padding:4px 6px;">
+                <button type="submit" class="btn btn-sm btn-ghost">OK</button>
+              </form>
             {% else %}<span style="color:var(--muted);font-size:13px;">Это вы</span>{% endif %}
           </div>
         </td>
