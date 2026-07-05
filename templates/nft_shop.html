@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Магазин подарков{% endblock %}
+{% block content %}
+<div class="container" style="max-width:980px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:24px;margin-bottom:8px;">
+    <h1 style="font-size:24px;font-weight:800;">🎁 Магазин подарков</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="{{ url_for('nft.gifts_mine') }}" class="btn btn-ghost btn-sm">🧧 Мои подарки</a>
+      <div style="font-weight:800;">💰 {{ "{:,.2f}".format(balance or 0).replace(",", " ") }} ₽</div>
+    </div>
+  </div>
+  <p style="color:var(--muted);margin-bottom:20px;font-size:14px;">
+    Покупай подарки и улучшай их до NFT — у каждой модели свой шанс выпадения и ограниченный тираж, как в Telegram Gifts.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;">
+    {% for item in catalog %}
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:40px;">{{ item.emoji }}</div>
+        <div>
+          <div style="font-weight:800;font-size:16px;">{{ item.name }}</div>
+          <div style="font-size:12px;color:var(--muted);">Тираж NFT: {{ "{:,}".format(item.supply).replace(",", " ") }} шт.</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">Возможные модели после улучшения:</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        {% for m in item.models_display %}
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;">
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ m.color }};margin-right:6px;"></span>{{ m.name }}</span>
+          <span style="color:var(--muted);">{{ m.chance }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:auto;padding-top:10px;">
+        <button class="btn btn-primary btn-sm buy-btn" style="flex:1;justify-content:center;"
+          data-type="{{ item.type }}" data-price="{{ item.price }}">
+          Купить · {{ "{:,.0f}".format(item.price).replace(",", " ") }} ₽
+        </button>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);">Улучшение до NFT: {{ "{:,.0f}".format(item.upgrade_cost).replace(",", " ") }} ₽</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.buy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const giftType = btn.dataset.type;
+    btn.disabled = true;
+    fetch('/api/gifts/buy', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({gift_type: giftType})
+    }).then(r => r.json()).then(d => {
+      btn.disabled = false;
+      if (d.ok) {
+        const balEl = document.querySelector('.container div[style*="font-weight:800"]');
+        location.href = "{{ url_for('nft.gifts_mine') }}";
+      } else {
+        alert(d.msg || 'Ошибка покупки');
+      }
+    }).catch(() => { btn.disabled = false; alert('Ошибка сети'); });
+  });
+});
+</script>
+{% endblock %}

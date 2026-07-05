@@ -318,6 +318,7 @@ nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
   <div class="nav-links">
     {% if session.user_id %}
       <a href="/ad/new" class="btn btn-accent btn-sm">+ Объявление</a>
+      <a href="{{ url_for('nft.gifts_mine') }}" class="btn btn-ghost btn-sm">🎁 Подарки</a>
       <a href="/favorites" class="btn btn-ghost btn-sm">❤️</a>
       <a href="/support" class="btn btn-ghost btn-sm">💬 Поддержка</a>
       <a href="/messages" class="btn btn-ghost btn-sm" id="msg-btn">
@@ -353,6 +354,7 @@ nav{animation:_navDrop .4s cubic-bezier(.22,1,.36,1) both;}
 <div class="mobile-menu" id="mobile-menu">
   {% if session.user_id %}
     <a href="/ad/new" class="btn btn-accent">+ Новое объявление</a>
+    <a href="{{ url_for('nft.gifts_mine') }}" class="btn btn-ghost">🎁 Подарки</a>
     <a href="/favorites" class="btn btn-ghost">❤️ Избранное</a>
     <a href="/messages" class="btn btn-ghost">✉️ Сообщения</a>
     <a href="/messenger" class="btn btn-msn">🚀 Мессенджер</a>

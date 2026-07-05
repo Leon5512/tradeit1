@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Мои подарки{% endblock %}
+{% block content %}
+<div class="container" style="max-width:980px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:24px;margin-bottom:20px;">
+    <h1 style="font-size:24px;font-weight:800;">🧧 Мои подарки</h1>
+    <a href="{{ url_for('nft.gifts_shop') }}" class="btn btn-ghost btn-sm">🎁 Магазин подарков</a>
+  </div>
+
+  {% if not gifts %}
+  <div class="card" style="text-align:center;padding:50px;color:var(--muted);">
+    <div style="font-size:48px;margin-bottom:12px;">📭</div>
+    <p>У тебя пока нет подарков.</p>
+    <a href="{{ url_for('nft.gifts_shop') }}" class="btn btn-primary btn-sm" style="margin-top:14px;display:inline-flex;">Открыть магазин</a>
+  </div>
+  {% else %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
+    {% for g in gifts %}
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;{% if g.is_nft %}border:2px solid {{ g.tier_color }};{% endif %}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:34px;">{{ g.emoji }}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:800;font-size:15px;">{{ g.gift_name }}</div>
+          {% if g.is_nft %}
+          <div style="font-size:11.5px;font-weight:700;color:{{ g.tier_color }};">{{ g.tier_label }} · #{{ g.nft_number }}</div>
+          {% else %}
+          <div style="font-size:11.5px;color:var(--muted);">Обычный подарок</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if g.is_nft %}
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.5;">
+          {{ g.nft_model }}<br>Фон: {{ g.nft_backdrop }} · Паттерн: {{ g.nft_pattern }}
+        </div>
+        <a href="{{ url_for('nft.gift_card', gift_id=g.id) }}" class="btn btn-ghost btn-sm" style="justify-content:center;">Открыть карточку</a>
+      {% else %}
+        <button class="btn btn-primary btn-sm upgrade-btn" style="justify-content:center;" data-id="{{ g.id }}">
+          ✨ Улучшить до NFT · {{ "{:,.0f}".format(upgrade_costs.get(g.gift_type, 0)).replace(",", " ") }} ₽
+        </button>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Модалка анимации улучшения ── -->
+<div id="upgrade-modal" style="display:none;position:fixed;inset:0;background:rgba(10,12,20,0.82);
+  z-index:999;align-items:center;justify-content:center;flex-direction:column;">
+  <div id="upgrade-box" style="font-size:90px;transition:transform .15s;">🎁</div>
+  <div id="upgrade-status" style="color:white;font-weight:700;margin-top:16px;font-size:15px;">Улучшаем подарок…</div>
+
+  <div id="upgrade-result" style="display:none;text-align:center;margin-top:6px;">
+    <div id="result-emoji" style="font-size:70px;"></div>
+    <div id="result-tier" style="font-weight:800;font-size:18px;margin-top:8px;letter-spacing:0.5px;"></div>
+    <div id="result-model" style="color:white;font-weight:700;font-size:16px;margin-top:4px;"></div>
+    <div id="result-attrs" style="color:#c9d2e0;font-size:13px;margin-top:6px;"></div>
+    <div id="result-number" style="color:#c9d2e0;font-size:12px;margin-top:4px;"></div>
+    <button id="upgrade-close" class="btn btn-primary btn-sm" style="margin-top:20px;">Отлично!</button>
+  </div>
+</div>
+
+<style>
+@keyframes giftShake { 0%,100%{transform:rotate(0);} 25%{transform:rotate(-12deg);} 75%{transform:rotate(12deg);} }
+.gift-shaking { animation: giftShake 0.35s infinite; }
+@keyframes revealPop { from{opacity:0;transform:scale(0.7);} to{opacity:1;transform:scale(1);} }
+#upgrade-result.show { display:block !important; animation: revealPop 0.4s cubic-bezier(.22,1,.36,1) both; }
+</style>
+
+<script>
+document.querySelectorAll('.upgrade-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const giftId = btn.dataset.id;
+    const modal = document.getElementById('upgrade-modal');
+    const box = document.getElementById('upgrade-box');
+    const status = document.getElementById('upgrade-status');
+    const result = document.getElementById('upgrade-result');
+
+    modal.style.display = 'flex';
+    box.style.display = 'block';
+    box.classList.add('gift-shaking');
+    status.style.display = 'block';
+    status.textContent = 'Улучшаем подарок…';
+    result.classList.remove('show');
+    result.style.display = 'none';
+
+    fetch(`/api/gifts/${giftId}/upgrade`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        setTimeout(() => {
+          box.classList.remove('gift-shaking');
+          if (!d.ok) {
+            status.textContent = d.msg || 'Не удалось улучшить подарок';
+            setTimeout(() => { modal.style.display = 'none'; }, 1800);
+            return;
+          }
+          box.style.display = 'none';
+          status.style.display = 'none';
+          const g = d.gift;
+          document.getElementById('result-emoji').textContent = g.emoji;
+          document.getElementById('result-tier').textContent = g.tier_label.toUpperCase();
+          document.getElementById('result-tier').style.color = g.tier_color;
+          document.getElementById('result-model').textContent = g.model;
+          document.getElementById('result-attrs').textContent = `Фон: ${g.backdrop} · Паттерн: ${g.pattern}`;
+          document.getElementById('result-number').textContent = `Экземпляр #${g.number} из ${g.supply}`;
+          result.style.display = 'block';
+          result.classList.add('show');
+
+          const navBalance = document.getElementById('nav-balance');
+          if (navBalance) navBalance.textContent = Number(d.balance).toLocaleString('ru-RU',{minimumFractionDigits:2}) + ' ₽';
+        }, 900);
+      })
+      .catch(() => {
+        status.textContent = 'Ошибка сети';
+        setTimeout(() => { modal.style.display = 'none'; }, 1800);
+      });
+  });
+});
+
+document.getElementById('upgrade-close').addEventListener('click', () => location.reload());
+</script>
+{% endblock %}
