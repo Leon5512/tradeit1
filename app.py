@@ -5,7 +5,7 @@ from balance_keys import keys_bp, init_keys_db
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from push_notifications import send_push_to_user, VAPID_PUBLIC_KEY
-import os, time, functools, uuid as uuid_lib, secrets
+import os, time, functools, uuid as uuid_lib, secrets, random
 
 
 # ── 2FA зависимости ──────────────────────────────────
@@ -510,6 +510,79 @@ def api_balance():
     db = get_db()
     row = db.execute("SELECT balance FROM users WHERE id=?", (session["user_id"],)).fetchone()
     return jsonify({"balance": row["balance"] if row else 0})
+
+
+# ── Колесо фортуны (раз в день, случайный выигрыш в TEITS) ──
+WHEEL_SEGMENTS = [
+    {"amount": 10,  "weight": 30, "color": "#00aeef"},
+    {"amount": 20,  "weight": 25, "color": "#0077b6"},
+    {"amount": 50,  "weight": 18, "color": "#00aeef"},
+    {"amount": 15,  "weight": 25, "color": "#0077b6"},
+    {"amount": 100, "weight": 10, "color": "#00aeef"},
+    {"amount": 25,  "weight": 20, "color": "#0077b6"},
+    {"amount": 500, "weight": 2,  "color": "#ffb703"},
+    {"amount": 200, "weight": 5,  "color": "#0077b6"},
+]
+WHEEL_COOLDOWN = 24 * 60 * 60  # 24 часа
+
+
+@app.route("/wheel")
+def wheel():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    db = get_db()
+    user = db.execute("SELECT id, username, balance, last_wheel_spin FROM users WHERE id=?",
+                       (session["user_id"],)).fetchone()
+    now = int(time.time())
+    last_spin = user["last_wheel_spin"] or 0
+    seconds_left = max(0, WHEEL_COOLDOWN - (now - last_spin))
+
+    n = len(WHEEL_SEGMENTS)
+    seg_deg = 360 / n
+    gradient_parts = []
+    segments_with_angles = []
+    for i, seg in enumerate(WHEEL_SEGMENTS):
+        start = i * seg_deg
+        end = start + seg_deg
+        mid = start + seg_deg / 2
+        gradient_parts.append(f"{seg['color']} {start}deg {end}deg")
+        segments_with_angles.append({**seg, "mid_angle": round(mid, 2)})
+    wheel_gradient = "conic-gradient(" + ", ".join(gradient_parts) + ")"
+
+    return render_template("wheel.html",
+                           user=user,
+                           segments=segments_with_angles,
+                           wheel_gradient=wheel_gradient,
+                           can_spin=(seconds_left == 0),
+                           seconds_left=seconds_left)
+
+
+@app.route("/api/wheel/spin", methods=["POST"])
+def api_wheel_spin():
+    if "user_id" not in session:
+        return jsonify({"ok": False, "msg": "Войди в аккаунт"})
+    uid = session["user_id"]
+    db = get_db()
+    user = db.execute("SELECT last_wheel_spin FROM users WHERE id=?", (uid,)).fetchone()
+    now = int(time.time())
+    last_spin = user["last_wheel_spin"] or 0
+    seconds_left = WHEEL_COOLDOWN - (now - last_spin)
+    if seconds_left > 0:
+        return jsonify({"ok": False, "msg": "Колесо доступно раз в 24 часа", "seconds_left": seconds_left})
+
+    weights = [seg["weight"] for seg in WHEEL_SEGMENTS]
+    index = random.choices(range(len(WHEEL_SEGMENTS)), weights=weights, k=1)[0]
+    amount = WHEEL_SEGMENTS[index]["amount"]
+
+    db.execute("UPDATE users SET balance = balance + ?, last_wheel_spin=? WHERE id=?", (amount, now, uid))
+    db.execute(
+        "INSERT INTO transactions (user_id, amount, type, description, created_at) VALUES (?,?,?,?,?)",
+        (uid, amount, "wheel", "Колесо фортуны", now)
+    )
+    db.commit()
+    new_balance = db.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()[0]
+    return jsonify({"ok": True, "segment_index": index, "amount": amount,
+                     "balance": new_balance, "seconds_left": WHEEL_COOLDOWN})
 
 # ── Сообщения ─────────────────────────────────────────
 @app.route("/messages")
