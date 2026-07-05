@@ -101,7 +101,7 @@ def admin_keys_create():
         (code, amount, session["user_id"], int(time.time())),
     )
     db.commit()
-    flash(f"Ключ создан: {code} — на {amount:,.0f} ₽".replace(",", " "), "success")
+    flash(f"Ключ создан: {code} — на {amount:,.0f} TEITS".replace(",", " "), "success")
     return redirect(url_for("keys.admin_keys"))
 
 
